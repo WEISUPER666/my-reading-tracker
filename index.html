@@ -637,24 +637,31 @@
                     </el-button>
                     <template #dropdown>
                         <el-dropdown-menu>
-                            <el-dropdown-item command="settings" divided>
+                            <!-- 系统设置组 -->
+                            <el-dropdown-item command="settings">
                                 <el-icon><Setting /></el-icon>&nbsp;系统设置
                             </el-dropdown-item>
                             <el-dropdown-item command="category">
-                                <el-icon><CollectionTag /></el-icon>&nbsp;管理分类
+                                <el-icon><CollectionTag /></el-icon>&nbsp;分类设置
                             </el-dropdown-item>
-                            <el-dropdown-item command="import">
+                            <el-dropdown-item command="platform">
+                                <el-icon><Monitor /></el-icon>&nbsp;平台设置
+                            </el-dropdown-item>
+                            <!-- 备份组 -->
+                            <el-dropdown-item command="import" divided>
                                 <el-icon><Upload /></el-icon>&nbsp;导入备份
                             </el-dropdown-item>
                             <el-dropdown-item command="export">
                                 <el-icon><Download /></el-icon>&nbsp;导出备份
                             </el-dropdown-item>
+                            <!-- 安全组 -->
                             <el-dropdown-item command="changePassword" divided>
                                 <el-icon><Key /></el-icon>&nbsp;修改访问密码
                             </el-dropdown-item>
                             <el-dropdown-item command="lock">
                                 <el-icon><Lock /></el-icon>&nbsp;锁定（退出）
                             </el-dropdown-item>
+                            <!-- 外观组 -->
                             <el-dropdown-item command="darkmode" divided>
                                 <el-icon :class="isDarkMode ? 'el-icon--right' : ''"><MoonNight /></el-icon>&nbsp;{{ isDarkMode ? '☀️ 日间模式' : '🌙 夜间模式' }}
                             </el-dropdown-item>
@@ -729,7 +736,12 @@
                         class="category-filter"
                         @change="onCategoryFilterChange">
                         <el-option label="全部分类" value=""></el-option>
-                        <el-option v-for="cat in availableCategories" :key="cat" :label="cat" :value="cat"></el-option>
+                        <el-option v-for="cat in availableCategories" :key="cat" :label="getCategoryIcon(cat) + ' ' + cat" :value="cat">
+                            <span style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 16px;">{{ getCategoryIcon(cat) }}</span>
+                                <span>{{ cat }}</span>
+                            </span>
+                        </el-option>
                     </el-select>
                     <el-input 
                         v-model="searchQuery" 
@@ -766,9 +778,9 @@
                             <span :class="['platform-tag', getPlatformClass(book.logs?.[0]?.platform || '其他')]">
                                 {{ book.logs?.[0]?.platform || '默认平台' }}
                             </span>
-                            <!-- 需求三：分类标签 -->
+                            <!-- 需求三：分类标签（带图标） -->
                             <span v-if="book.category && book.category !== '未分类'" class="book-category-tag">
-                                {{ book.category }}
+                                {{ getCategoryIcon(book.category) }} {{ book.category }}
                             </span>
                             <!-- 需求三：星级评分 -->
                             <div v-if="book.rating > 0" class="book-rating">
@@ -819,11 +831,7 @@
                 </el-form-item>
                 <el-form-item label="来源平台" required>
                     <el-select v-model="formData.platform" placeholder="请选择平台" style="width: 100%;">
-                        <el-option label="微信读书" value="微信读书"></el-option>
-                        <el-option label="喜马拉雅" value="喜马拉雅"></el-option>
-                        <el-option label="本地文件" value="本地文件"></el-option>
-                        <el-option label="实体书" value="实体书"></el-option>
-                        <el-option label="其他" value="其他"></el-option>
+                        <el-option v-for="plat in platformList" :key="plat.name" :label="plat.name" :value="plat.name"></el-option>
                     </el-select>
                 </el-form-item>
                 <el-form-item label="当前状态" required>
@@ -858,7 +866,12 @@
                 <!-- 需求三：分类（仅新书录入时可选） -->
                 <el-form-item label="分类标签">
                     <el-select v-model="formData.category" placeholder="选择或输入分类" allow-create filterable style="width: 100%;">
-                        <el-option v-for="cat in availableCategories" :key="cat" :label="cat" :value="cat"></el-option>
+                        <el-option v-for="cat in availableCategories" :key="cat" :label="getCategoryIcon(cat) + ' ' + cat" :value="cat">
+                            <span style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 16px;">{{ getCategoryIcon(cat) }}</span>
+                                <span>{{ cat }}</span>
+                            </span>
+                        </el-option>
                     </el-select>
                 </el-form-item>
                 <!-- 需求三：星级评分 -->
@@ -1001,7 +1014,12 @@
                 <!-- 需求三：编辑分类 -->
                 <el-form-item label="分类标签">
                     <el-select v-model="editForm.category" placeholder="选择或输入分类" allow-create filterable style="width: 100%;">
-                        <el-option v-for="cat in availableCategories" :key="cat" :label="cat" :value="cat"></el-option>
+                        <el-option v-for="cat in availableCategories" :key="cat" :label="getCategoryIcon(cat) + ' ' + cat" :value="cat">
+                            <span style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 16px;">{{ getCategoryIcon(cat) }}</span>
+                                <span>{{ cat }}</span>
+                            </span>
+                        </el-option>
                     </el-select>
                 </el-form-item>
                 <!-- 需求三：编辑评分 -->
@@ -1041,11 +1059,7 @@
             <el-form :model="editLogForm" label-width="90px" label-position="left">
                 <el-form-item label="来源平台" required>
                     <el-select v-model="editLogForm.platform" placeholder="请选择平台" style="width: 100%;">
-                        <el-option label="微信读书" value="微信读书"></el-option>
-                        <el-option label="喜马拉雅" value="喜马拉雅"></el-option>
-                        <el-option label="本地文件" value="本地文件"></el-option>
-                        <el-option label="实体书" value="实体书"></el-option>
-                        <el-option label="其他" value="其他"></el-option>
+                        <el-option v-for="plat in platformList" :key="plat.name" :label="plat.name" :value="plat.name"></el-option>
                     </el-select>
                 </el-form-item>
                 <el-form-item label="当前状态" required>
@@ -1085,7 +1099,7 @@
         </el-dialog>
 
         <!-- 分类管理对话框 -->
-        <el-dialog v-model="showCategoryDialog" title="管理分类" width="450px" destroy-on-close @opened="fetchCategories">
+        <el-dialog v-model="showCategoryDialog" title="分类设置" width="500px" destroy-on-close @opened="fetchCategories">
             <div style="margin-bottom: 16px; display: flex; gap: 8px;">
                 <el-input
                     v-model="newCategoryName"
@@ -1094,6 +1108,11 @@
                     @keyup.enter="handleAddCategory"
                     :disabled="isAddingCategory">
                 </el-input>
+                <el-select v-model="newCategoryIcon" placeholder="选择图标" style="width: 100px;" clearable>
+                    <el-option v-for="emoji in emojiList" :key="emoji" :label="emoji" :value="emoji">
+                        <span style="font-size: 18px;">{{ emoji }}</span>
+                    </el-option>
+                </el-select>
                 <el-button type="primary" @click="handleAddCategory" :loading="isAddingCategory" round>
                     添加
                 </el-button>
@@ -1104,8 +1123,66 @@
             </div>
             <div v-for="cat in categoryList" :key="cat.id"
                  style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-radius: 8px; margin-bottom: 6px; background: #f8fafc; transition: background 0.2s;">
+                <span style="font-size: 14px; font-weight: 500; color: #374151; display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 20px; width: 28px; text-align: center; flex-shrink: 0;">
+                        {{ cat.icon || '📁' }}
+                    </span>
+                    <el-tag size="small" type="primary" round>{{ cat.name }}</el-tag>
+                </span>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                    <el-button size="small" circle icon="Edit" plain @click="openIconPicker(cat)"></el-button>
+                    <el-button
+                        type="danger"
+                        size="small"
+                        circle
+                        icon="Delete"
+                        plain
+                        @click="handleDeleteCategory(cat.id, cat.name)">
+                    </el-button>
+                </div>
+            </div>
+        </el-dialog>
+
+        <!-- 图标选择对话框 -->
+        <el-dialog v-model="showIconPickerDialog" title="选择分类图标" width="420px" destroy-on-close>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; max-height: 360px; overflow-y: auto; padding: 4px;">
+                <span v-for="emoji in emojiList" :key="emoji"
+                      @click="confirmCategoryIcon(emoji)"
+                      style="font-size: 28px; cursor: pointer; padding: 6px 8px; border-radius: 8px; transition: all 0.15s; border: 2px solid transparent;"
+                      :style="{ background: editingCategoryIcon === emoji ? '#e0e7ff' : '#f9fafb', borderColor: editingCategoryIcon === emoji ? '#4f46e5' : 'transparent' }"
+                      @mouseenter="$event.target.style.background = '#eef2ff'"
+                      @mouseleave="$event.target.style.background = editingCategoryIcon === emoji ? '#e0e7ff' : '#f9fafb'">
+                    {{ emoji }}
+                </span>
+            </div>
+            <template #footer>
+                <el-button @click="showIconPickerDialog = false" round>取消</el-button>
+                <el-button type="primary" @click="confirmCategoryIcon(editingCategoryIcon)" round :disabled="!editingCategoryIcon">确认选择</el-button>
+            </template>
+        </el-dialog>
+
+        <!-- 平台管理对话框 -->
+        <el-dialog v-model="showPlatformDialog" title="平台设置" width="450px" destroy-on-close @opened="fetchPlatforms">
+            <div style="margin-bottom: 16px; display: flex; gap: 8px;">
+                <el-input
+                    v-model="newPlatformName"
+                    placeholder="输入新平台名称"
+                    style="flex: 1;"
+                    @keyup.enter="handleAddPlatform"
+                    :disabled="isAddingPlatform">
+                </el-input>
+                <el-button type="primary" @click="handleAddPlatform" :loading="isAddingPlatform" round>
+                    添加
+                </el-button>
+            </div>
+            <el-divider style="margin: 8px 0 16px 0;"></el-divider>
+            <div v-if="platformList.length === 0" style="text-align: center; padding: 30px 0; color: #9ca3af;">
+                暂无平台，请在上方添加
+            </div>
+            <div v-for="plat in platformList" :key="plat.id"
+                 style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-radius: 8px; margin-bottom: 6px; background: #f8fafc; transition: background 0.2s;">
                 <span style="font-size: 14px; font-weight: 500; color: #374151;">
-                    <el-tag size="small" type="primary" round style="margin-right: 8px;">{{ cat.name }}</el-tag>
+                    <el-tag size="small" type="success" round style="margin-right: 8px;">{{ plat.name }}</el-tag>
                 </span>
                 <el-button
                     type="danger"
@@ -1113,7 +1190,7 @@
                     circle
                     icon="Delete"
                     plain
-                    @click="handleDeleteCategory(cat.id, cat.name)">
+                    @click="handleDeletePlatform(plat.id, plat.name)">
                 </el-button>
             </div>
         </el-dialog>
@@ -1268,6 +1345,7 @@
                         // 登录成功后加载数据
                         fetchBooks();
                         fetchCategories();
+                        fetchPlatforms();
                     } catch (error) {
                         authError.value = '密码错误，请重试';
                     } finally {
@@ -1362,7 +1440,22 @@
                 const showCategoryDialog = ref(false);
                 const categoryList = ref([]);
                 const newCategoryName = ref('');
+                const newCategoryIcon = ref('');
                 const isAddingCategory = ref(false);
+                // 图标选择对话框
+                const showIconPickerDialog = ref(false);
+                const editingCategory = ref(null);
+                const editingCategoryIcon = ref('');
+                // 常用 Emoji 图标列表，供分类选择
+                const emojiList = ['📖', '📜', '💻', '🧠', '🧩', '📊', '🌱', '📂', '📚', '📕', '📗', '📘', '📙', '📔', '📓', '📒', '📃', '📄', '📁', '🗂️', '🏛️', '⚙️', '🔧', '🎨', '🎵', '🎬', '🎮', '🏀', '⚽', '🎯', '✈️', '🚀', '🌍', '🔬', '🧪', '💡', '💼', '💰', '🏆', '🥇', '⭐', '❤️', '💛', '💚', '💙', '💜', '🌈', '🔥', '💎', '🎁', '🎉', '🎊', '📌', '🔖', '📎', '🖊️', '✏️', '📝', '📋', '📅', '📆', '⏰', '🔔', '💬', '🗨️', '💭', '🧘', '🍎', '🍀', '🌻', '🌙', '☀️', '🌟', '✨', '💫', '🎈', '🎪', '🎭', '🎤', '🎧', '🎶', '🎹', '🎸', '🎺', '🎻', '🎲', '♟️', '🔮', '🕹️', '🖼️', '🗺️', '🧭', '🔍', '🔎', '🧲', '🎀', '🧸', '🪄', '🛡️', '⚔️', '🏹', '🧬', '🦠', '🔭', '🪐', '🌌', '🌊', '🏔️', '🏝️', '🌴', '🌸', '🌺', '🍁', '🍂', '🌾'];
+
+                // ==========================================
+                // 平台管理相关状态
+                // ==========================================
+                const showPlatformDialog = ref(false);
+                const platformList = ref([]);
+                const newPlatformName = ref('');
+                const isAddingPlatform = ref(false);
 
                 // ==========================================
                 // 系统设置相关状态
@@ -1485,9 +1578,14 @@
                     }
                     isAddingCategory.value = true;
                     try {
-                        await axios.post(`${API_BASE}/categories/`, { name });
+                        const payload = { name };
+                        if (newCategoryIcon.value) {
+                            payload.icon = newCategoryIcon.value;
+                        }
+                        await axios.post(`${API_BASE}/categories/`, payload);
                         ElMessage.success(`分类「${name}」创建成功`);
                         newCategoryName.value = '';
+                        newCategoryIcon.value = '';
                         await fetchCategories();
                     } catch (error) {
                         if (error.response?.data?.detail) {
@@ -1498,6 +1596,35 @@
                     } finally {
                         isAddingCategory.value = false;
                     }
+                };
+
+                // 更新分类图标
+                const updateCategoryIcon = async (cat, emoji) => {
+                    try {
+                        await axios.put(`${API_BASE}/categories/${cat.id}`, { icon: emoji });
+                        cat.icon = emoji;
+                        ElMessage.success(`图标已更新`);
+                    } catch (error) {
+                        ElMessage.error('图标更新失败');
+                    }
+                };
+
+                // 打开图标选择器
+                const openIconPicker = (cat) => {
+                    editingCategory.value = cat;
+                    editingCategoryIcon.value = cat.icon || '';
+                    showIconPickerDialog.value = true;
+                };
+
+                // 确认选择图标
+                const confirmCategoryIcon = (emoji) => {
+                    if (!editingCategory.value) return;
+                    if (!emoji) {
+                        ElMessage.warning('请选择一个图标');
+                        return;
+                    }
+                    updateCategoryIcon(editingCategory.value, emoji);
+                    showIconPickerDialog.value = false;
                 };
 
                 // 删除分类
@@ -1514,6 +1641,66 @@
                     } catch (error) {
                         if (error !== 'cancel') {
                             ElMessage.error('删除分类失败');
+                        }
+                    }
+                };
+
+                // ==========================================
+                // 平台管理 API 方法
+                // ==========================================
+                // 从 API 获取平台列表
+                const fetchPlatforms = async () => {
+                    try {
+                        const res = await axios.get(`${API_BASE}/platforms/`);
+                        platformList.value = res.data;
+                    } catch (error) {
+                        console.error('获取平台列表失败', error);
+                    }
+                };
+
+                // 打开平台管理对话框
+                const openPlatformManager = () => {
+                    showPlatformDialog.value = true;
+                };
+
+                // 添加平台
+                const handleAddPlatform = async () => {
+                    const name = newPlatformName.value.trim();
+                    if (!name) {
+                        ElMessage.warning('请输入平台名称');
+                        return;
+                    }
+                    isAddingPlatform.value = true;
+                    try {
+                        await axios.post(`${API_BASE}/platforms/`, { name });
+                        ElMessage.success(`平台「${name}」创建成功`);
+                        newPlatformName.value = '';
+                        await fetchPlatforms();
+                    } catch (error) {
+                        if (error.response?.data?.detail) {
+                            ElMessage.error(error.response.data.detail);
+                        } else {
+                            ElMessage.error('创建平台失败');
+                        }
+                    } finally {
+                        isAddingPlatform.value = false;
+                    }
+                };
+
+                // 删除平台
+                const handleDeletePlatform = async (id, name) => {
+                    try {
+                        await ElMessageBox.confirm(
+                            `确定要删除平台「${name}」吗？`,
+                            '删除确认',
+                            { confirmButtonText: '确定删除', cancelButtonText: '取消', type: 'warning' }
+                        );
+                        await axios.delete(`${API_BASE}/platforms/${id}`);
+                        ElMessage.success(`平台「${name}」已删除`);
+                        await fetchPlatforms();
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            ElMessage.error('删除平台失败');
                         }
                     }
                 };
@@ -1567,6 +1754,13 @@
                     } finally {
                         isChangingPassword.value = false;
                     }
+                };
+
+                // 根据分类名称获取图标
+                const getCategoryIcon = (categoryName) => {
+                    if (!categoryName) return '📁';
+                    const found = categoryList.value.find(cat => cat.name === categoryName);
+                    return found?.icon || '📁';
                 };
 
                 // 计算属性：从 API 分类列表 + 书籍中已有的分类合并去重
@@ -2007,6 +2201,9 @@
                         case 'category':
                             openCategoryManager();
                             break;
+                        case 'platform':
+                            openPlatformManager();
+                            break;
                         case 'import':
                             triggerImport();
                             break;
@@ -2137,11 +2334,17 @@
                 };
 
                 const getPlatformClass = (platform) => {
-                    if (platform === '微信读书') return 'platform-wechat';
-                    if (platform === '喜马拉雅') return 'platform-ximalaya';
-                    if (platform === '本地文件') return 'platform-local';
-                    if (platform === '实体书') return 'platform-physical';
-                    return 'platform-other';
+                    // 从 platformList 中查找匹配的平台
+                    const matched = platformList.value.find(p => p.name === platform);
+                    if (!matched) return 'platform-other';
+                    // 为已知平台返回对应的 CSS 类名
+                    const classMap = {
+                        '微信读书': 'platform-wechat',
+                        '喜马拉雅': 'platform-ximalaya',
+                        '本地文件': 'platform-local',
+                        '实体书': 'platform-physical'
+                    };
+                    return classMap[platform] || 'platform-other';
                 };
 
                 const resetForm = () => {
@@ -2174,6 +2377,7 @@
                     if (isAuthenticated.value) {
                         fetchBooks();
                         fetchCategories();
+                        fetchPlatforms();
                     }
                 });
 
@@ -2202,8 +2406,14 @@
                     // 导出/导入
                     handleExport, importFileInput, triggerImport, handleImport,
                     // 分类管理
-                    showCategoryDialog, categoryList, newCategoryName, isAddingCategory,
+                    showCategoryDialog, categoryList, newCategoryName, newCategoryIcon, isAddingCategory, emojiList,
                     fetchCategories, openCategoryManager, handleAddCategory, handleDeleteCategory,
+                    updateCategoryIcon, openIconPicker, getCategoryIcon,
+                    // 图标选择器
+                    showIconPickerDialog, editingCategory, editingCategoryIcon, confirmCategoryIcon,
+                    // 平台管理
+                    showPlatformDialog, platformList, newPlatformName, isAddingPlatform,
+                    fetchPlatforms, openPlatformManager, handleAddPlatform, handleDeletePlatform,
                     // 系统设置
                     siteSettings, showSettingsDialog, isSavingSettings, settingsForm,
                     openSettingsDialog, handleSaveSettings, handleSettingsIconUpload, onSiteIconError,

@@ -38,6 +38,16 @@ class Category(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, unique=True, index=True, nullable=False)  # 分类名称，唯一
+    icon = Column(String, nullable=True)  # 分类图标（Emoji 或图片 URL）
+    created_at = Column(DateTime, default=datetime.now)
+
+
+class Platform(Base):
+    """平台表 (Platforms) - 独立管理来源平台"""
+    __tablename__ = "platforms"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, unique=True, index=True, nullable=False)  # 平台名称，唯一
     created_at = Column(DateTime, default=datetime.now)
 
 
@@ -114,6 +124,14 @@ def upgrade_database():
             db.execute(text("ALTER TABLE reading_logs ADD COLUMN notes VARCHAR"))
             print("[迁移] reading_logs 表添加 notes 列")
         
+        # 检查 categories 表是否有 icon 列
+        result = db.execute(text("PRAGMA table_info(categories)")).fetchall()
+        existing_columns = [row[1] for row in result]
+        
+        if 'icon' not in existing_columns:
+            db.execute(text("ALTER TABLE categories ADD COLUMN icon VARCHAR"))
+            print("[迁移] categories 表添加 icon 列")
+
         db.commit()
         print("[迁移] 数据库结构检查完成")
     except Exception as e:
@@ -129,9 +147,18 @@ def seed_default_categories():
     try:
         existing_count = db.query(Category).count()
         if existing_count == 0:
-            default_categories = ["小说", "历史", "科技", "哲学", "心理学", "经济管理", "个人成长", "其他"]
-            for cat_name in default_categories:
-                db.add(Category(name=cat_name))
+            default_categories = [
+                ("小说", "📖"),
+                ("历史", "📜"),
+                ("科技", "💻"),
+                ("哲学", "🧠"),
+                ("心理学", "🧩"),
+                ("经济管理", "📊"),
+                ("个人成长", "🌱"),
+                ("其他", "📂")
+            ]
+            for cat_name, cat_icon in default_categories:
+                db.add(Category(name=cat_name, icon=cat_icon))
             db.commit()
             print(f"[初始化] 已添加 {len(default_categories)} 个默认分类")
     except Exception as e:
@@ -140,12 +167,32 @@ def seed_default_categories():
     finally:
         db.close()
 
+def seed_default_platforms():
+    """初始化默认平台，确保新用户也有平台可选"""
+    db = SessionLocal()
+    try:
+        existing_count = db.query(Platform).count()
+        if existing_count == 0:
+            default_platforms = ["微信读书", "喜马拉雅", "本地文件", "实体书"]
+            for plat_name in default_platforms:
+                db.add(Platform(name=plat_name))
+            db.commit()
+            print(f"[初始化] 已添加 {len(default_platforms)} 个默认平台")
+    except Exception as e:
+        print(f"[初始化] 添加默认平台时出错: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
+
 # 自动在数据库中创建所有表（如果表已经存在则不会重复创建）
 Base.metadata.create_all(bind=engine)
 # 执行数据库迁移（检测并添加缺失列）
 upgrade_database()
 # 初始化默认分类（仅首次运行时生效）
 seed_default_categories()
+# 初始化默认平台（仅首次运行时生效）
+seed_default_platforms()
 
 
 def init_admin_password():
@@ -308,12 +355,13 @@ def get_db():
 class CategoryCreate(BaseModel):
     """创建分类的请求格式"""
     name: str
+    icon: Optional[str] = None  # 分类图标（Emoji 或图片 URL）
 
 @app.get("/api/categories/")
 def get_categories(db: Session = Depends(get_db)):
     """获取所有分类列表"""
     categories = db.query(Category).order_by(Category.name).all()
-    return [{"id": cat.id, "name": cat.name, "created_at": cat.created_at.strftime("%Y-%m-%d %H:%M:%S")} for cat in categories]
+    return [{"id": cat.id, "name": cat.name, "icon": cat.icon, "created_at": cat.created_at.strftime("%Y-%m-%d %H:%M:%S")} for cat in categories]
 
 @app.post("/api/categories/")
 def create_category(item: CategoryCreate, db: Session = Depends(get_db)):
@@ -322,11 +370,34 @@ def create_category(item: CategoryCreate, db: Session = Depends(get_db)):
     existing = db.query(Category).filter(Category.name == item.name).first()
     if existing:
         raise HTTPException(status_code=400, detail="分类名称已存在")
-    db_cat = Category(name=item.name)
+    db_cat = Category(name=item.name, icon=item.icon)
     db.add(db_cat)
     db.commit()
     db.refresh(db_cat)
-    return {"message": "分类创建成功", "id": db_cat.id, "name": db_cat.name}
+    return {"message": "分类创建成功", "id": db_cat.id, "name": db_cat.name, "icon": db_cat.icon}
+
+class CategoryUpdate(BaseModel):
+    """更新分类的请求格式"""
+    name: Optional[str] = None
+    icon: Optional[str] = None
+
+@app.put("/api/categories/{category_id}")
+def update_category(category_id: int, item: CategoryUpdate, db: Session = Depends(get_db)):
+    """更新分类（名称、图标）"""
+    cat = db.query(Category).filter(Category.id == category_id).first()
+    if not cat:
+        raise HTTPException(status_code=404, detail="分类不存在")
+    if item.name is not None:
+        # 检查新名称是否与其他分类重复
+        existing = db.query(Category).filter(Category.name == item.name, Category.id != category_id).first()
+        if existing:
+            raise HTTPException(status_code=400, detail="分类名称已存在")
+        cat.name = item.name
+    if item.icon is not None:
+        cat.icon = item.icon
+    db.commit()
+    db.refresh(cat)
+    return {"message": "分类更新成功", "id": cat.id, "name": cat.name, "icon": cat.icon}
 
 @app.delete("/api/categories/{category_id}")
 def delete_category(category_id: int, db: Session = Depends(get_db)):
@@ -337,6 +408,39 @@ def delete_category(category_id: int, db: Session = Depends(get_db)):
     db.delete(cat)
     db.commit()
     return {"message": f"分类「{cat.name}」已删除"}
+
+class PlatformCreate(BaseModel):
+    """创建平台的请求格式"""
+    name: str
+
+@app.get("/api/platforms/")
+def get_platforms(db: Session = Depends(get_db)):
+    """获取所有平台列表"""
+    platforms = db.query(Platform).order_by(Platform.name).all()
+    return [{"id": plat.id, "name": plat.name, "created_at": plat.created_at.strftime("%Y-%m-%d %H:%M:%S")} for plat in platforms]
+
+@app.post("/api/platforms/")
+def create_platform(item: PlatformCreate, db: Session = Depends(get_db)):
+    """创建新平台"""
+    existing = db.query(Platform).filter(Platform.name == item.name).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="平台名称已存在")
+    db_plat = Platform(name=item.name)
+    db.add(db_plat)
+    db.commit()
+    db.refresh(db_plat)
+    return {"message": "平台创建成功", "id": db_plat.id, "name": db_plat.name}
+
+@app.delete("/api/platforms/{platform_id}")
+def delete_platform(platform_id: int, db: Session = Depends(get_db)):
+    """删除平台"""
+    plat = db.query(Platform).filter(Platform.id == platform_id).first()
+    if not plat:
+        raise HTTPException(status_code=404, detail="平台不存在")
+    db.delete(plat)
+    db.commit()
+    return {"message": f"平台「{plat.name}」已删除"}
+
 
 @app.get("/api/books/check")
 def check_book(title: str, db: Session = Depends(get_db)):
