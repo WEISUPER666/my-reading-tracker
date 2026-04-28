@@ -1,0 +1,2244 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人阅读档案</title>
+    
+    <!-- 引入 Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- 引入 Element Plus 样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+    <!-- 引入 Element Plus 脚本 -->
+    <script src="https://unpkg.com/element-plus"></script>
+    <!-- 引入 Element Plus 中文语言包 -->
+    <script src="https://unpkg.com/element-plus/dist/locale/zh-cn.min.js"></script>
+
+    <!-- 引入 Element Plus 图标 -->
+    <script src="https://unpkg.com/@element-plus/icons-vue"></script>
+    <!-- 引入 Axios -->
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <!-- 引入 ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+
+    <style>
+        /* 时间轴弹窗样式：居中大弹窗，内容可独立滚动 */
+        .timeline-dialog {
+            width: 60% !important;
+            max-width: 800px !important;
+            min-width: 400px !important;
+        }
+        .timeline-dialog .el-dialog__body {
+            max-height: 75vh;
+            overflow-y: auto;
+            padding: 20px 24px;
+        }
+        @media (max-width: 768px) {
+            .timeline-dialog {
+                width: 92% !important;
+                min-width: unset !important;
+                max-width: unset !important;
+            }
+            .timeline-dialog .el-dialog__body {
+                max-height: 70vh;
+                padding: 16px;
+            }
+        }
+
+        /* 随手记卡片样式：浅灰圆角背景，优雅换行 */
+        .notes-card {
+            margin-top: 10px;
+            padding: 14px 16px;
+            background: #f3f4f6;
+            border-radius: 10px;
+            border: 1px solid #e5e7eb;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: pre-wrap;
+            color: #374151;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+        .notes-card .notes-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+            letter-spacing: 0.3px;
+        }
+        .notes-card .notes-content {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: pre-wrap;
+            color: #374151;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        /* 进度标签样式 */
+        .progress-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 12px;
+            background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #4f46e5;
+            border: 1px solid rgba(79, 70, 229, 0.15);
+        }
+
+        /* CSS 变量：定义现代化颜色体系 */
+        :root {
+            --bg-color: #f3f4f6;
+            --text-main: #1f2937;
+            --text-secondary: #6b7280;
+            --card-bg: #ffffff;
+            --primary-color: #4f46e5;
+            --primary-hover: #4338ca;
+            --accent-color: #10b981;
+            --danger-color: #ef4444;
+            --border-radius-lg: 20px;
+            --border-radius-md: 12px;
+            --border-radius-sm: 8px;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            
+            --el-color-primary: var(--primary-color);
+            --el-border-radius-base: var(--border-radius-sm);
+        }
+
+        /* 夜间模式 CSS 变量覆盖 */
+        body.dark-mode {
+            --bg-color: #1a1a2e;
+            --text-main: #e5e7eb;
+            --text-secondary: #9ca3af;
+            --card-bg: #16213e;
+            --primary-color: #818cf8;
+            --primary-hover: #6366f1;
+            --accent-color: #34d399;
+            --danger-color: #f87171;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3);
+            --shadow-hover: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+        }
+        body.dark-mode .navbar {
+            background-color: rgba(22, 33, 62, 0.9);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        body.dark-mode .action-card {
+            background: linear-gradient(135deg, #16213e 0%, #1a1a2e 100%);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        body.dark-mode .stat-card {
+            background: #16213e;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        body.dark-mode .notes-card {
+            background: #1e293b;
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #d1d5db;
+        }
+        body.dark-mode .progress-badge {
+            background: linear-gradient(135deg, #1e1b4b, #312e81);
+            border: 1px solid rgba(129, 140, 248, 0.2);
+        }
+        body.dark-mode .el-dialog {
+            background-color: #16213e;
+        }
+        body.dark-mode .el-dialog__title {
+            color: #e5e7eb;
+        }
+        body.dark-mode .el-table {
+            background-color: #16213e;
+            color: #e5e7eb;
+        }
+        body.dark-mode .el-table th.el-table__cell {
+            background-color: #1a1a2e;
+            color: #e5e7eb;
+        }
+        body.dark-mode .el-table__body tr:hover > td {
+            background-color: #1e293b !important;
+        }
+        body.dark-mode .el-table--striped .el-table__body tr.el-table__row--striped td {
+            background-color: #1e1e36;
+        }
+        body.dark-mode .el-table__body tr.el-table__row td {
+            background-color: #16213e;
+        }
+        body.dark-mode .el-input__wrapper {
+            background-color: #1e293b;
+            box-shadow: 0 0 0 1px #334155 inset;
+        }
+        body.dark-mode .el-input__inner {
+            color: #e5e7eb;
+        }
+        body.dark-mode .el-textarea__inner {
+            background-color: #1e293b;
+            color: #e5e7eb;
+            box-shadow: 0 0 0 1px #334155 inset;
+        }
+        body.dark-mode .el-select-dropdown {
+            background-color: #16213e;
+            border: 1px solid #334155;
+        }
+        body.dark-mode .el-select-dropdown__item {
+            color: #e5e7eb;
+        }
+        body.dark-mode .el-select-dropdown__item.hover {
+            background-color: #1e293b;
+        }
+        body.dark-mode .el-dropdown-menu {
+            background-color: #16213e;
+            border: 1px solid #334155;
+        }
+        body.dark-mode .el-dropdown-menu__item {
+            color: #e5e7eb;
+        }
+        body.dark-mode .el-dropdown-menu__item:hover {
+            background-color: #1e293b;
+            color: #818cf8;
+        }
+        body.dark-mode .el-message-box {
+            background-color: #16213e;
+        }
+        body.dark-mode .el-message-box__title {
+            color: #e5e7eb;
+        }
+        body.dark-mode .el-message-box__message {
+            color: #d1d5db;
+        }
+        body.dark-mode .el-message-box__btns .el-button--default {
+            background-color: #1e293b;
+            border-color: #334155;
+            color: #e5e7eb;
+        }
+        body.dark-mode .el-pagination button,
+        body.dark-mode .el-pagination span,
+        body.dark-mode .el-pagination .el-input__inner {
+            color: #e5e7eb;
+            background-color: transparent;
+        }
+        body.dark-mode .el-pagination .btn-prev,
+        body.dark-mode .el-pagination .btn-next {
+            background-color: transparent;
+        }
+
+        * { box-sizing: border-box; }
+
+        body { 
+            margin: 0; 
+            background-color: var(--bg-color); 
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+            color: var(--text-main);
+            min-height: 100vh;
+            padding-bottom: 40px;
+        }
+
+        /* 顶部导航 */
+        .navbar {
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 5%;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--text-main);
+            letter-spacing: -0.5px;
+        }
+        
+        .brand-icon {
+            background: linear-gradient(135deg, var(--primary-color), #818cf8);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 4px 10px rgba(79, 70, 229, 0.3);
+        }
+
+        .main-container {
+            max-width: 1280px;
+            margin: 20px auto 0;
+            padding: 0 20px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 30% 40% 30%;
+            gap: 16px;
+            margin-bottom: 24px;
+            max-height: 160px;
+        }
+
+        @media (max-width: 1200px) {
+            .dashboard-grid { grid-template-columns: 1fr 1fr; max-height: none; }
+        }
+        @media (max-width: 900px) {
+            .dashboard-grid { grid-template-columns: 1fr; max-height: none; }
+        }
+
+        .action-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: var(--border-radius-lg);
+            padding: 16px 20px;
+            box-shadow: var(--shadow-md);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border: 1px solid rgba(0,0,0,0.02);
+            position: relative;
+            overflow: hidden;
+        }
+        .action-card::after {
+            content: '';
+            position: absolute;
+            top: -50%; right: -20%;
+            width: 200px; height: 200px;
+            background: radial-gradient(circle, rgba(79,70,229,0.08) 0%, rgba(255,255,255,0) 70%);
+            border-radius: 50%;
+        }
+        .action-card h2 { margin: 0 0 4px 0; font-size: 18px; }
+        .action-card p { color: var(--text-secondary); margin: 0 0 12px 0; font-size: 13px; line-height: 1.5; }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+        }
+        @media (max-width: 600px) {
+            .stats-grid { grid-template-columns: 1fr; }
+        }
+
+        .stat-card {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius-md);
+            padding: 12px 14px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(0,0,0,0.02);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: transform 0.3s ease;
+        }
+        .stat-card:hover { transform: translateY(-3px); }
+        .stat-icon {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .icon-blue { background: #e0e7ff; color: #4f46e5; }
+        .icon-green { background: #d1fae5; color: #10b981; }
+        .icon-orange { background: #ffedd5; color: #f97316; }
+        
+        .stat-info { min-width: 0; }
+        .stat-info h3 { margin: 0; font-size: 12px; color: var(--text-secondary); font-weight: 500; white-space: nowrap; }
+        .stat-info .value { margin: 2px 0 0 0; font-size: 22px; font-weight: 700; color: var(--text-main); white-space: nowrap; }
+
+        /* 需求三：图表卡片样式 */
+        .chart-card {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius-lg);
+            padding: 10px 14px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(0,0,0,0.02);
+            transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .chart-card:hover { transform: translateY(-3px); }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .section-title {
+            font-size: 18px; font-weight: 700; margin: 0;
+            display: flex; align-items: center; gap: 8px;
+        }
+        
+        .search-filter-area {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .search-box { width: 220px; }
+        .search-box .el-input__wrapper {
+            border-radius: 20px;
+            padding-left: 15px;
+            background-color: white;
+            box-shadow: var(--shadow-sm);
+        }
+        .category-filter { width: 150px; }
+
+        .book-card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius-md);
+            overflow: hidden;
+            border: none;
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .book-card:hover {
+            transform: translateY(-6px);
+            box-shadow: var(--shadow-hover);
+        }
+        
+        .book-cover-wrapper {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 3 / 4;
+            overflow: hidden;
+            background-color: #f8fafc;
+        }
+        .book-cover {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            transition: transform 0.5s ease;
+        }
+        .book-card:hover .book-cover { transform: scale(1.05); }
+        
+        .book-cover-placeholder {
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            color: #94a3b8; font-size: 36px;
+            background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+        }
+        .book-cover-placeholder span { font-size: 12px; margin-top: 8px; font-weight: 500; }
+
+        .status-badge {
+            position: absolute;
+            top: 8px; right: 8px;
+            padding: 3px 8px;
+            border-radius: 20px;
+            font-size: 11px; font-weight: 600;
+            backdrop-filter: blur(4px);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .status-badge.reading { background: rgba(245, 158, 11, 0.9); color: white; }
+        .status-badge.completed { background: rgba(16, 185, 129, 0.9); color: white; }
+        .status-badge.dropped { background: rgba(107, 114, 128, 0.9); color: white; }
+
+        .book-content {
+            padding: 10px 12px 12px;
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+        .book-title {
+            font-size: 14px; font-weight: 700; color: var(--text-main);
+            margin: 0 0 4px 0;
+            display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+            line-height: 1.35;
+        }
+
+        .book-category-tag {
+            display: inline-block;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 500;
+            background: #e0e7ff;
+            color: #4f46e5;
+            margin-bottom: 3px;
+            width: fit-content;
+        }
+        .book-rating {
+            margin-bottom: 3px;
+        }
+        .book-rating .el-rate__icon {
+            font-size: 12px !important;
+        }
+
+        .book-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: auto;
+            padding-top: 8px;
+            border-top: 1px dashed #e5e7eb;
+        }
+        .meta-item { display: flex; align-items: center; gap: 3px; font-size: 11px; color: var(--text-secondary); }
+
+        .platform-tag {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-size: 11px; font-weight: 500;
+            margin-bottom: 6px;
+            width: fit-content;
+        }
+        .platform-wechat { background: #e8f5e9; color: #2e7d32; }
+        .platform-ximalaya { background: #ffebee; color: #c62828; }
+        .platform-local { background: #e3f2fd; color: #1565c0; }
+        .platform-physical { background: #fff8e1; color: #f57f17; }
+        .platform-other { background: #f3f4f6; color: #4b5563; }
+
+        .empty-state {
+            text-align: center; padding: 80px 20px;
+            background: white; border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-sm);
+        }
+        .empty-state-icon { font-size: 60px; color: #cbd5e1; margin-bottom: 16px; }
+        .empty-state p { color: var(--text-secondary); font-size: 16px; }
+
+        .el-dialog { border-radius: var(--border-radius-md) !important; overflow: hidden; }
+        .el-drawer { border-radius: 16px 0 0 16px !important; }
+
+        /* 需求一：密码锁全屏覆盖层样式 */
+        .auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        .auth-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            padding: 48px 40px 40px;
+            width: 380px;
+            max-width: 90vw;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+        .auth-card .auth-icon {
+            width: 72px;
+            height: 72px;
+            background: linear-gradient(135deg, #4f46e5, #818cf8);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 36px;
+            color: white;
+            box-shadow: 0 8px 24px rgba(79, 70, 229, 0.4);
+        }
+        .auth-card h2 {
+            margin: 0 0 8px;
+            font-size: 22px;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        .auth-card p {
+            margin: 0 0 28px;
+            font-size: 14px;
+            color: #6b7280;
+            line-height: 1.6;
+        }
+        .auth-card .el-input__wrapper {
+            border-radius: 12px;
+            padding: 4px 16px;
+            height: 48px;
+            font-size: 16px;
+        }
+        .auth-card .el-button {
+            width: 100%;
+            height: 48px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 16px;
+        }
+        .auth-error {
+            color: #ef4444;
+            font-size: 13px;
+            margin-top: 12px;
+            min-height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- 需求一：密码锁全屏覆盖层 -->
+        <div v-if="!isAuthenticated" class="auth-overlay">
+            <div class="auth-card">
+                <div class="auth-icon">
+                    <el-icon><Lock /></el-icon>
+                </div>
+                <h2>{{ siteSettings.site_name }}已加密 🔒</h2>
+                <p>请输入访问密码以解锁你的{{ siteSettings.site_name }}</p>
+                <el-input
+                    v-model="authPassword"
+                    type="password"
+                    placeholder="请输入访问密码"
+                    show-password
+                    @keyup.enter="handleAuth"
+                    :disabled="isAuthLoading">
+                </el-input>
+                <el-button type="primary" @click="handleAuth" :loading="isAuthLoading">
+                    {{ isAuthLoading ? '验证中...' : '解锁' }}
+                </el-button>
+                <div class="auth-error">{{ authError }}</div>
+            </div>
+        </div>
+
+        <!-- 顶部导航栏 -->
+        <nav class="navbar">
+            <div class="nav-brand">
+                <div class="brand-icon">
+                    <img v-if="siteSettings.site_icon" :src="siteSettings.site_icon" style="width:40px;height:40px;border-radius:10px;object-fit:cover;" @error="onSiteIconError">
+                    <el-icon v-else><Reading /></el-icon>
+                </div>
+                {{ siteSettings.site_name }}
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <el-button round @click="fetchBooks">
+                    <el-icon><Refresh /></el-icon>&nbsp;刷新数据
+                </el-button>
+                <!-- 设置 / 更多 下拉菜单 -->
+                <el-dropdown trigger="click" @command="handleSettingsCommand">
+                    <el-button round>
+                        <el-icon><Setting /></el-icon>&nbsp;⚙️ 设置 / 更多
+                        <el-icon class="el-icon--right"><ArrowDown /></el-icon>
+                    </el-button>
+                    <template #dropdown>
+                        <el-dropdown-menu>
+                            <el-dropdown-item command="settings" divided>
+                                <el-icon><Setting /></el-icon>&nbsp;系统设置
+                            </el-dropdown-item>
+                            <el-dropdown-item command="category">
+                                <el-icon><CollectionTag /></el-icon>&nbsp;管理分类
+                            </el-dropdown-item>
+                            <el-dropdown-item command="import">
+                                <el-icon><Upload /></el-icon>&nbsp;导入备份
+                            </el-dropdown-item>
+                            <el-dropdown-item command="export">
+                                <el-icon><Download /></el-icon>&nbsp;导出备份
+                            </el-dropdown-item>
+                            <el-dropdown-item command="changePassword" divided>
+                                <el-icon><Key /></el-icon>&nbsp;修改访问密码
+                            </el-dropdown-item>
+                            <el-dropdown-item command="lock">
+                                <el-icon><Lock /></el-icon>&nbsp;锁定（退出）
+                            </el-dropdown-item>
+                            <el-dropdown-item command="darkmode" divided>
+                                <el-icon :class="isDarkMode ? 'el-icon--right' : ''"><MoonNight /></el-icon>&nbsp;{{ isDarkMode ? '☀️ 日间模式' : '🌙 夜间模式' }}
+                            </el-dropdown-item>
+                        </el-dropdown-menu>
+                    </template>
+                </el-dropdown>
+                <!-- 隐藏的文件选择器，用于导入备份 -->
+                <input type="file" ref="importFileInput" accept=".json" style="display: none;" @change="handleImport">
+                <!-- 录入新档案按钮（主要外露） -->
+                <el-button type="primary" size="large" round icon="Plus" @click="showAddDialog = true" style="box-shadow: 0 4px 12px rgba(79,70,229,0.3);">
+                    录入新档案
+                </el-button>
+            </div>
+        </nav>
+
+        <main class="main-container">
+            <!-- 仪表盘区域 -->
+            <div class="dashboard-grid">
+                <div class="action-card">
+                    <h2>{{ siteSettings.welcome_title }}</h2>
+                    <p>{{ siteSettings.welcome_subtitle }}</p>
+                    <div>
+                        <el-button type="primary" size="large" round icon="Plus" @click="showAddDialog = true" style="box-shadow: 0 4px 12px rgba(79,70,229,0.3);">
+                            录入新档案
+                        </el-button>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon icon-blue"><el-icon><Collection /></el-icon></div>
+                        <div class="stat-info">
+                            <h3>总计藏书</h3>
+                            <div class="value">{{ totalBooks }} <span style="font-size:14px; font-weight:normal; color:#9ca3af;">本</span></div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon icon-orange"><el-icon><Headset /></el-icon></div>
+                        <div class="stat-info">
+                            <h3>正在阅读/听</h3>
+                            <div class="value">{{ readingBooks }} <span style="font-size:14px; font-weight:normal; color:#9ca3af;">本</span></div>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon icon-green"><el-icon><Check /></el-icon></div>
+                        <div class="stat-info">
+                            <h3>已完结</h3>
+                            <div class="value">{{ completedBooks }} <span style="font-size:14px; font-weight:normal; color:#9ca3af;">本</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 需求三：数据可视化看板 - 藏书分类占比饼图 -->
+                <div class="chart-card">
+                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                        <el-icon style="font-size: 16px; color: #4f46e5;"><PieChart /></el-icon>
+                        <h3 style="margin: 0; font-size: 13px; font-weight: 700; color: #1f2937;">藏书分类占比</h3>
+                    </div>
+                    <div id="categoryChart" style="width: 100%; height: 110px;"></div>
+                </div>
+            </div>
+
+            <!-- 我的书架区域 -->
+            <div class="section-header">
+                <h2 class="section-title"><el-icon><Management /></el-icon> 我的书架</h2>
+                <div class="search-filter-area">
+                    <!-- 需求三：按分类筛选下拉菜单 -->
+                    <el-select
+                        v-model="categoryFilter"
+                        placeholder="全部分类"
+                        clearable
+                        class="category-filter"
+                        @change="onCategoryFilterChange">
+                        <el-option label="全部分类" value=""></el-option>
+                        <el-option v-for="cat in availableCategories" :key="cat" :label="cat" :value="cat"></el-option>
+                    </el-select>
+                    <el-input 
+                        v-model="searchQuery" 
+                        placeholder="搜索书名..." 
+                        clearable 
+                        prefix-icon="Search"
+                        class="search-box">
+                    </el-input>
+                </div>
+            </div>
+
+            <!-- 空状态 -->
+            <div v-if="filteredBooks.length === 0" class="empty-state">
+                <div class="empty-state-icon"><el-icon><Box /></el-icon></div>
+                <p>这里空空如也，{{ searchQuery || categoryFilter ? '没有找到相关书籍' : '快去录入你的第一本书吧！' }}</p>
+                <el-button v-if="!searchQuery && !categoryFilter" type="primary" plain round @click="showAddDialog = true" style="margin-top:10px;">立即录入</el-button>
+            </div>
+
+            <!-- 书籍网格 -->
+            <el-row :gutter="24">
+                <el-col :xs="12" :sm="8" :md="6" :lg="4" :xl="4" v-for="book in filteredBooks" :key="book.id" style="margin-bottom: 24px;">
+                    <div class="book-card" @click="openTimeline(book)">
+                        <div class="book-cover-wrapper">
+                            <img v-if="book.cover" :src="book.cover" alt="cover" class="book-cover" @error="handleImageError">
+                            <div v-else class="book-cover-placeholder">
+                                <el-icon><Picture /></el-icon>
+                                <span>无封面</span>
+                            </div>
+                            <div :class="['status-badge', getStatusEn(book.status)]">
+                                {{ book.status }}
+                            </div>
+                        </div>
+                        <div class="book-content">
+                            <span :class="['platform-tag', getPlatformClass(book.logs?.[0]?.platform || '其他')]">
+                                {{ book.logs?.[0]?.platform || '默认平台' }}
+                            </span>
+                            <!-- 需求三：分类标签 -->
+                            <span v-if="book.category && book.category !== '未分类'" class="book-category-tag">
+                                {{ book.category }}
+                            </span>
+                            <!-- 需求三：星级评分 -->
+                            <div v-if="book.rating > 0" class="book-rating">
+                                <el-rate v-model="book.rating" disabled show-score text-color="#ff9900" score-template="{value} 星" style="display: inline-block;"></el-rate>
+                            </div>
+                            <h3 class="book-title" :title="book.title">{{ book.title }}</h3>
+                            
+                            <!-- 需求一+二：操作按钮上下排列 -->
+                            <div style="display: flex; flex-direction: column; gap: 4px; margin: 6px 0;">
+                                <div v-if="book.read_url" @click.stop>
+                                    <a :href="book.read_url" target="_blank" rel="noopener noreferrer" style="display: block;">
+                                        <el-button type="primary" size="small" round icon="Link" style="width: 100%; font-size: 11px;">
+                                            🔗 立即阅读
+                                        </el-button>
+                                    </a>
+                                </div>
+                                <div>
+                                    <el-button
+                                        size="small"
+                                        round
+                                        plain
+                                        style="width: 100%; font-size: 11px;"
+                                        @click.stop="quickUpdateProgress(book)">
+                                        ✏️ 更新进度
+                                    </el-button>
+                                </div>
+                            </div>
+                            
+                            <div class="book-meta">
+                                <div class="meta-item" title="阅读/重刷次数">
+                                    <el-icon><Refresh /></el-icon> {{ book.read_count }} 次
+                                </div>
+                                <div class="meta-item" title="最后更新时间">
+                                    <el-icon><Calendar /></el-icon> {{ book.last_read_date }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </el-col>
+            </el-row>
+        </main>
+
+        <!-- 录入书籍的弹窗 -->
+        <el-dialog v-model="showAddDialog" title="录入阅读记录" width="500px" @closed="resetForm" destroy-on-close>
+            <el-form :model="formData" label-width="90px" label-position="left">
+                <el-form-item label="书名" required>
+                    <el-input v-model="formData.title" placeholder="请输入书名，如《三体》"></el-input>
+                </el-form-item>
+                <el-form-item label="来源平台" required>
+                    <el-select v-model="formData.platform" placeholder="请选择平台" style="width: 100%;">
+                        <el-option label="微信读书" value="微信读书"></el-option>
+                        <el-option label="喜马拉雅" value="喜马拉雅"></el-option>
+                        <el-option label="本地文件" value="本地文件"></el-option>
+                        <el-option label="实体书" value="实体书"></el-option>
+                        <el-option label="其他" value="其他"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="当前状态" required>
+                    <el-radio-group v-model="formData.status">
+                        <el-radio label="阅读中">阅读中</el-radio>
+                        <el-radio label="已读完">已读完</el-radio>
+                        <el-radio label="已弃坑">已弃坑</el-radio>
+                    </el-radio-group>
+                </el-form-item>
+                <el-form-item label="开始日期">
+                    <el-date-picker 
+                        v-model="formData.startDate" 
+                        type="date" 
+                        placeholder="默认今天" 
+                        style="width: 100%;"
+                        value-format="YYYY-MM-DD">
+                    </el-date-picker>
+                </el-form-item>
+                <!-- 需求二：当前进度 -->
+                <el-form-item label="当前进度">
+                    <el-input v-model="formData.progress" placeholder="如：第823章、50%、看到第3卷..."></el-input>
+                </el-form-item>
+                <!-- 需求二：随手记（多行文本框） -->
+                <el-form-item label="随手记">
+                    <el-input
+                        v-model="formData.notes"
+                        type="textarea"
+                        :rows="3"
+                        placeholder="记录你的阅读感想、重点摘录...">
+                    </el-input>
+                </el-form-item>
+                <!-- 需求三：分类（仅新书录入时可选） -->
+                <el-form-item label="分类标签">
+                    <el-select v-model="formData.category" placeholder="选择或输入分类" allow-create filterable style="width: 100%;">
+                        <el-option v-for="cat in availableCategories" :key="cat" :label="cat" :value="cat"></el-option>
+                    </el-select>
+                </el-form-item>
+                <!-- 需求三：星级评分 -->
+                <el-form-item label="星级评分">
+                    <el-rate v-model="formData.rating" :max="5" show-score text-color="#ff9900" score-template="{value} 星"></el-rate>
+                </el-form-item>
+                <!-- 需求一：阅读链接 -->
+                <el-form-item label="阅读链接">
+                    <el-input v-model="formData.read_url" placeholder="输入阅读链接，如 https://weread.qq.com/web/..."></el-input>
+                </el-form-item>
+                <el-form-item label="封面图片">
+                    <div style="display: flex; gap: 8px;">
+                        <el-input v-model="formData.cover" placeholder="输入网络图片链接" style="flex: 1;"></el-input>
+                        <el-upload
+                            :show-file-list="false"
+                            :http-request="handleCoverUpload"
+                            accept="image/*"
+                            :before-upload="beforeCoverUpload">
+                            <el-button icon="Upload" type="primary">本地上传</el-button>
+                        </el-upload>
+                    </div>
+                    <img v-if="formData.cover" :src="formData.cover"
+                         style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; margin-top: 8px;"
+                         @error="formData.cover = ''">
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="showAddDialog = false" round>取消</el-button>
+                    <el-button type="primary" @click="handleCheckAndSubmit" :loading="isSubmitting" round>确认保存</el-button>
+                </span>
+            </template>
+        </el-dialog>
+
+        <!-- 历史阅读记录的时间轴弹窗（居中大弹窗） -->
+        <el-dialog
+            v-model="showTimeline"
+            title=""
+            width="800px"
+            class="timeline-dialog"
+            destroy-on-close
+            :close-on-click-modal="false">
+            <template #header>
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding-right: 40px;">
+                    <span style="font-size: 18px; font-weight: 700; color: #1f2937;">《{{ currentBookTitle }}》 档案纪要</span>
+                    <el-button type="primary" size="small" plain icon="Edit" @click="openEditDialog">
+                        编辑书籍
+                    </el-button>
+                </div>
+            </template>
+
+            <!-- 书籍信息摘要 -->
+            <div v-if="currentBookInfo" style="margin-bottom: 24px; padding: 14px 18px; background: #f8fafc; border-radius: 12px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap; border: 1px solid #e5e7eb;">
+                <span v-if="currentBookInfo.category && currentBookInfo.category !== '未分类'" style="font-size: 13px; color: #6b7280; display: flex; align-items: center; gap: 6px;">
+                    <el-icon><CollectionTag /></el-icon> 分类：<el-tag size="small" type="primary" round>{{ currentBookInfo.category }}</el-tag>
+                </span>
+                <span v-if="currentBookInfo.rating > 0" style="font-size: 13px; color: #6b7280; display: flex; align-items: center; gap: 6px;">
+                    <el-icon><StarFilled style="color: #f59e0b;" /></el-icon> 评分：<el-rate v-model="currentBookInfo.rating" disabled show-score text-color="#ff9900" score-template="{value} 星" style="display: inline-block;"></el-rate>
+                </span>
+            </div>
+
+            <el-timeline v-if="currentLogs.length > 0">
+                <el-timeline-item
+                    v-for="(log, index) in currentLogs"
+                    :key="log.id"
+                    :timestamp="formatDate(log.start_date)"
+                    placement="top"
+                    :type="index === 0 ? 'primary' : 'info'"
+                    :hollow="index !== 0">
+                    <el-card shadow="hover" style="border-radius: 12px; border: 1px solid #e5e7eb; background: #ffffff;">
+                        <!-- 卡片头部：标题 + 操作按钮 -->
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                            <h4 style="margin: 0; color: #1f2937; font-size: 15px;">
+                                第 {{ currentLogs.length - index }} 次阅读
+                            </h4>
+                            <div style="display: flex; gap: 6px;">
+                                <el-button
+                                    type="primary"
+                                    icon="Edit"
+                                    circle
+                                    size="small"
+                                    plain
+                                    @click.stop="openEditLogDialog(log)"
+                                    title="编辑此记录">
+                                </el-button>
+                                <el-button
+                                    type="danger"
+                                    icon="Delete"
+                                    circle
+                                    size="small"
+                                    plain
+                                    @click="deleteLog(log.id, log.book_id)"
+                                    title="删除此记录">
+                                </el-button>
+                            </div>
+                        </div>
+
+                        <!-- 基础信息行：平台 + 状态 -->
+                        <div style="display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: #6b7280; margin-bottom: 10px;">
+                            <div style="display: flex; align-items: center; gap: 4px;">
+                                <el-icon><Location /></el-icon>
+                                <span>平台：<span style="color:#1f2937; font-weight:500;">{{ log.platform }}</span></span>
+                            </div>
+                            <div style="display: flex; align-items: center; gap: 4px;">
+                                <el-icon><Info /></el-icon>
+                                <span>状态：<el-tag size="small" :type="getStatusType(log.status)" round>{{ log.status }}</el-tag></span>
+                            </div>
+                        </div>
+
+                        <!-- 当前进度（突出显示） -->
+                        <div v-if="log.progress" style="margin-bottom: 6px;">
+                            <span class="progress-badge">
+                                <el-icon><TrendCharts /></el-icon>
+                                {{ log.progress }}
+                            </span>
+                        </div>
+
+                        <!-- 随手记（独立背景区块） -->
+                        <div v-if="log.notes" class="notes-card">
+                            <div class="notes-header">
+                                <el-icon><EditPen /></el-icon>
+                                随手记
+                            </div>
+                            <div class="notes-content">{{ log.notes }}</div>
+                        </div>
+                    </el-card>
+                </el-timeline-item>
+            </el-timeline>
+            <div v-else class="empty-state" style="box-shadow: none; padding: 40px 0;">
+                暂无记录数据...
+            </div>
+        </el-dialog>
+
+        <!-- 编辑书籍对话框 -->
+        <el-dialog v-model="showEditDialog" title="编辑书籍信息" width="500px" destroy-on-close>
+            <el-form :model="editForm" label-width="90px" label-position="left">
+                <el-form-item label="书名" required>
+                    <el-input v-model="editForm.title" placeholder="请输入书名"></el-input>
+                </el-form-item>
+                <!-- 需求三：编辑分类 -->
+                <el-form-item label="分类标签">
+                    <el-select v-model="editForm.category" placeholder="选择或输入分类" allow-create filterable style="width: 100%;">
+                        <el-option v-for="cat in availableCategories" :key="cat" :label="cat" :value="cat"></el-option>
+                    </el-select>
+                </el-form-item>
+                <!-- 需求三：编辑评分 -->
+                <el-form-item label="星级评分">
+                    <el-rate v-model="editForm.rating" :max="5" show-score text-color="#ff9900" score-template="{value} 星"></el-rate>
+                </el-form-item>
+                <!-- 需求一：阅读链接 -->
+                <el-form-item label="阅读链接">
+                    <el-input v-model="editForm.read_url" placeholder="输入阅读链接，如 https://weread.qq.com/web/..."></el-input>
+                </el-form-item>
+                <el-form-item label="封面图片">
+                    <div style="display: flex; gap: 8px;">
+                        <el-input v-model="editForm.cover" placeholder="输入网络图片链接" style="flex: 1;"></el-input>
+                        <el-upload
+                            :show-file-list="false"
+                            :http-request="handleCoverUpload"
+                            accept="image/*"
+                            :before-upload="beforeCoverUpload">
+                            <el-button icon="Upload" type="primary">本地上传</el-button>
+                        </el-upload>
+                    </div>
+                    <img v-if="editForm.cover" :src="editForm.cover"
+                         style="width: 80px; height: 80px; object-fit: cover; border-radius: 8px; margin-top: 8px;"
+                         @error="editForm.cover = ''">
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="showEditDialog = false" round>取消</el-button>
+                    <el-button type="primary" @click="handleEditSubmit" :loading="isEditing" round>保存修改</el-button>
+                </span>
+            </template>
+        </el-dialog>
+
+        <!-- 编辑阅读记录对话框 -->
+        <el-dialog v-model="showEditLogDialog" title="编辑阅读记录" width="500px" destroy-on-close>
+            <el-form :model="editLogForm" label-width="90px" label-position="left">
+                <el-form-item label="来源平台" required>
+                    <el-select v-model="editLogForm.platform" placeholder="请选择平台" style="width: 100%;">
+                        <el-option label="微信读书" value="微信读书"></el-option>
+                        <el-option label="喜马拉雅" value="喜马拉雅"></el-option>
+                        <el-option label="本地文件" value="本地文件"></el-option>
+                        <el-option label="实体书" value="实体书"></el-option>
+                        <el-option label="其他" value="其他"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="当前状态" required>
+                    <el-radio-group v-model="editLogForm.status">
+                        <el-radio label="阅读中">阅读中</el-radio>
+                        <el-radio label="已读完">已读完</el-radio>
+                        <el-radio label="已弃坑">已弃坑</el-radio>
+                    </el-radio-group>
+                </el-form-item>
+                <el-form-item label="开始日期">
+                    <el-date-picker
+                        v-model="editLogForm.startDate"
+                        type="date"
+                        placeholder="选择日期"
+                        style="width: 100%;"
+                        value-format="YYYY-MM-DD">
+                    </el-date-picker>
+                </el-form-item>
+                <el-form-item label="当前进度">
+                    <el-input v-model="editLogForm.progress" placeholder="如：第823章、50%、看到第3卷..."></el-input>
+                </el-form-item>
+                <el-form-item label="随手记">
+                    <el-input
+                        v-model="editLogForm.notes"
+                        type="textarea"
+                        :rows="3"
+                        placeholder="记录你的阅读感想、重点摘录...">
+                    </el-input>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="showEditLogDialog = false" round>取消</el-button>
+                    <el-button type="primary" @click="handleEditLogSubmit" :loading="isEditingLog" round>保存修改</el-button>
+                </span>
+            </template>
+        </el-dialog>
+
+        <!-- 分类管理对话框 -->
+        <el-dialog v-model="showCategoryDialog" title="管理分类" width="450px" destroy-on-close @opened="fetchCategories">
+            <div style="margin-bottom: 16px; display: flex; gap: 8px;">
+                <el-input
+                    v-model="newCategoryName"
+                    placeholder="输入新分类名称"
+                    style="flex: 1;"
+                    @keyup.enter="handleAddCategory"
+                    :disabled="isAddingCategory">
+                </el-input>
+                <el-button type="primary" @click="handleAddCategory" :loading="isAddingCategory" round>
+                    添加
+                </el-button>
+            </div>
+            <el-divider style="margin: 8px 0 16px 0;"></el-divider>
+            <div v-if="categoryList.length === 0" style="text-align: center; padding: 30px 0; color: #9ca3af;">
+                暂无分类，请在上方添加
+            </div>
+            <div v-for="cat in categoryList" :key="cat.id"
+                 style="display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-radius: 8px; margin-bottom: 6px; background: #f8fafc; transition: background 0.2s;">
+                <span style="font-size: 14px; font-weight: 500; color: #374151;">
+                    <el-tag size="small" type="primary" round style="margin-right: 8px;">{{ cat.name }}</el-tag>
+                </span>
+                <el-button
+                    type="danger"
+                    size="small"
+                    circle
+                    icon="Delete"
+                    plain
+                    @click="handleDeleteCategory(cat.id, cat.name)">
+                </el-button>
+            </div>
+        </el-dialog>
+
+        <!-- 系统设置对话框 -->
+        <el-dialog v-model="showSettingsDialog" title="系统设置" width="520px" destroy-on-close>
+            <el-form :model="settingsForm" label-width="100px" label-position="left">
+                <el-form-item label="系统名称" required>
+                    <el-input v-model="settingsForm.site_name" placeholder="如：个人阅读档案"></el-input>
+                </el-form-item>
+                <el-form-item label="欢迎标题">
+                    <el-input v-model="settingsForm.welcome_title" placeholder="如：欢迎回来，阅读者 👋" type="textarea" :rows="2"></el-input>
+                </el-form-item>
+                <el-form-item label="欢迎副标题">
+                    <el-input
+                        v-model="settingsForm.welcome_subtitle"
+                        placeholder="如：今天又读了什么好书？赶快记录下你的阅读进度或听书历程吧。每一次记录都是灵魂的脚印。"
+                        type="textarea"
+                        :rows="3">
+                    </el-input>
+                </el-form-item>
+                <el-form-item label="系统图标">
+                    <div style="display: flex; gap: 8px; align-items: center;">
+                        <div style="width: 40px; height: 40px; border-radius: 10px; overflow: hidden; flex-shrink: 0; background: linear-gradient(135deg, #4f46e5, #818cf8); display: flex; align-items: center; justify-content: center;">
+                            <img v-if="settingsForm.site_icon" :src="settingsForm.site_icon" style="width:100%;height:100%;object-fit:cover;" @error="settingsForm.site_icon = ''">
+                            <el-icon v-else style="font-size:20px;color:white;"><Reading /></el-icon>
+                        </div>
+                        <el-input v-model="settingsForm.site_icon" placeholder="输入图标图片链接" style="flex: 1;"></el-input>
+                        <el-upload
+                            :show-file-list="false"
+                            :http-request="handleSettingsIconUpload"
+                            accept="image/*"
+                            :before-upload="beforeCoverUpload">
+                            <el-button icon="Upload" type="primary">本地上传</el-button>
+                        </el-upload>
+                    </div>
+                    <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">建议尺寸：200×200px 以内的正方形图片</div>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="showSettingsDialog = false" round>取消</el-button>
+                    <el-button type="primary" @click="handleSaveSettings" :loading="isSavingSettings" round>保存设置</el-button>
+                </span>
+            </template>
+        </el-dialog>
+
+        <!-- 修改访问密码对话框 -->
+        <el-dialog v-model="showChangePasswordDialog" title="修改访问密码" width="420px" destroy-on-close>
+            <el-form :model="changePasswordForm" label-width="0px" label-position="top">
+                <el-form-item label="原密码" required>
+                    <el-input
+                        v-model="changePasswordForm.oldPassword"
+                        type="password"
+                        placeholder="请输入当前访问密码"
+                        show-password
+                        @keyup.enter="handleChangePassword">
+                    </el-input>
+                </el-form-item>
+                <el-form-item label="新密码" required>
+                    <el-input
+                        v-model="changePasswordForm.newPassword"
+                        type="password"
+                        placeholder="请输入新密码（至少 4 位）"
+                        show-password
+                        @keyup.enter="handleChangePassword">
+                    </el-input>
+                </el-form-item>
+                <el-form-item label="确认新密码" required>
+                    <el-input
+                        v-model="changePasswordForm.confirmPassword"
+                        type="password"
+                        placeholder="请再次输入新密码"
+                        show-password
+                        @keyup.enter="handleChangePassword">
+                    </el-input>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <span class="dialog-footer">
+                    <el-button @click="showChangePasswordDialog = false" round>取消</el-button>
+                    <el-button type="primary" @click="handleChangePassword" :loading="isChangingPassword" round>
+                        确认修改
+                    </el-button>
+                </span>
+            </template>
+        </el-dialog>
+
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted, reactive } = Vue;
+        const { ElMessage, ElMessageBox } = ElementPlus;
+
+        const API_BASE = '/api';
+
+        // ==========================================
+        // 需求一：配置 Axios 全局拦截器
+        // ==========================================
+        // 从 localStorage 恢复已保存的密码
+        const savedToken = localStorage.getItem('reading_tracker_token');
+        if (savedToken) {
+            axios.defaults.headers.common['X-Auth-Token'] = savedToken;
+        }
+
+        // 全局响应拦截器：捕获 401 未授权错误
+        axios.interceptors.response.use(
+            response => response,
+            error => {
+                if (error.response && error.response.status === 401) {
+                    // 清除本地保存的密码
+                    localStorage.removeItem('reading_tracker_token');
+                    delete axios.defaults.headers.common['X-Auth-Token'];
+                    // 如果当前 Vue 实例已挂载，更新认证状态
+                    if (window.__vueApp__) {
+                        window.__vueApp__.isAuthenticated = false;
+                    } else {
+                        window.location.reload();
+                    }
+                }
+                return Promise.reject(error);
+            }
+        );
+
+        const app = createApp({
+            setup() {
+                // ==========================================
+                // 需求一：密码锁状态
+                // ==========================================
+                const isAuthenticated = ref(!!localStorage.getItem('reading_tracker_token'));
+                const authPassword = ref('');
+                const isAuthLoading = ref(false);
+                const authError = ref('');
+
+                const handleAuth = async () => {
+                    if (!authPassword.value) {
+                        authError.value = '请输入访问密码';
+                        return;
+                    }
+                    isAuthLoading.value = true;
+                    authError.value = '';
+                    try {
+                        // 用一次简单的 API 调用来验证密码
+                        await axios.get(`${API_BASE}/books/`, {
+                            headers: { 'X-Auth-Token': authPassword.value }
+                        });
+                        // 验证成功，保存密码
+                        localStorage.setItem('reading_tracker_token', authPassword.value);
+                        axios.defaults.headers.common['X-Auth-Token'] = authPassword.value;
+                        isAuthenticated.value = true;
+                        authPassword.value = '';
+                        // 登录成功后加载数据
+                        fetchBooks();
+                        fetchCategories();
+                    } catch (error) {
+                        authError.value = '密码错误，请重试';
+                    } finally {
+                        isAuthLoading.value = false;
+                    }
+                };
+
+                // 需求一：退出登录（锁定应用）
+                const handleLogout = () => {
+                    localStorage.removeItem('reading_tracker_token');
+                    delete axios.defaults.headers.common['X-Auth-Token'];
+                    isAuthenticated.value = false;
+                    authPassword.value = '';
+                    authError.value = '';
+                    books.value = [];
+                };
+
+                // ==========================================
+                // 需求四：夜间模式切换
+                // ==========================================
+                const isDarkMode = ref(localStorage.getItem('reading_tracker_dark') === 'true');
+                // 初始化时应用夜间模式
+                if (isDarkMode.value) {
+                    document.body.classList.add('dark-mode');
+                }
+                const toggleDarkMode = () => {
+                    isDarkMode.value = !isDarkMode.value;
+                    if (isDarkMode.value) {
+                        document.body.classList.add('dark-mode');
+                        localStorage.setItem('reading_tracker_dark', 'true');
+                    } else {
+                        document.body.classList.remove('dark-mode');
+                        localStorage.setItem('reading_tracker_dark', 'false');
+                    }
+                };
+
+                // 响应式状态变量
+                const books = ref([]);
+                const searchQuery = ref('');
+                const showAddDialog = ref(false);
+                const showTimeline = ref(false);
+                const isSubmitting = ref(false);
+                
+                const currentBookTitle = ref('');
+                const currentLogs = ref([]);
+                const currentBookInfo = ref(null);
+
+                // 编辑书籍相关状态
+                const showEditDialog = ref(false);
+                const isEditing = ref(false);
+                const editingBookId = ref(null);
+                const editForm = reactive({
+                    title: '',
+                    cover: '',
+                    category: '未分类',
+                    rating: 0,
+                    read_url: ''  // 需求一：阅读链接
+                });
+
+                // 编辑阅读记录相关状态
+                const showEditLogDialog = ref(false);
+                const isEditingLog = ref(false);
+                const editingLogId = ref(null);
+                const editLogForm = reactive({
+                    platform: '微信读书',
+                    status: '阅读中',
+                    startDate: '',
+                    progress: '',
+                    notes: ''
+                });
+
+                // 录入表单的数据
+                const formData = reactive({
+                    title: '',
+                    platform: '微信读书',
+                    status: '阅读中',
+                    startDate: new Date().toISOString().split('T')[0],
+                    cover: '',
+                    progress: '',
+                    notes: '',
+                    category: '未分类',
+                    rating: 0,
+                    read_url: ''  // 需求一：阅读链接
+                });
+
+                // 需求三：分类筛选
+                const categoryFilter = ref('');
+
+                // ==========================================
+                // 分类管理相关状态
+                // ==========================================
+                const showCategoryDialog = ref(false);
+                const categoryList = ref([]);
+                const newCategoryName = ref('');
+                const isAddingCategory = ref(false);
+
+                // ==========================================
+                // 系统设置相关状态
+                // ==========================================
+                const siteSettings = reactive({
+                    site_name: '个人阅读档案',
+                    welcome_title: '欢迎回来，阅读者 👋',
+                    welcome_subtitle: '今天又读了什么好书？赶快记录下你的阅读进度或听书历程吧。每一次记录都是灵魂的脚印。',
+                    site_icon: ''
+                });
+                const showSettingsDialog = ref(false);
+                const isSavingSettings = ref(false);
+                const settingsForm = reactive({
+                    site_name: '',
+                    welcome_title: '',
+                    welcome_subtitle: '',
+                    site_icon: ''
+                });
+
+                // 从后端加载系统设置
+                const fetchSettings = async () => {
+                    try {
+                        const res = await axios.get(`${API_BASE}/settings/`);
+                        Object.assign(siteSettings, res.data);
+                    } catch (error) {
+                        console.error('获取系统设置失败', error);
+                    }
+                };
+
+                // 打开系统设置对话框
+                const openSettingsDialog = () => {
+                    settingsForm.site_name = siteSettings.site_name;
+                    settingsForm.welcome_title = siteSettings.welcome_title;
+                    settingsForm.welcome_subtitle = siteSettings.welcome_subtitle;
+                    settingsForm.site_icon = siteSettings.site_icon;
+                    showSettingsDialog.value = true;
+                };
+
+                // 保存系统设置
+                const handleSaveSettings = async () => {
+                    if (!settingsForm.site_name.trim()) {
+                        ElMessage.warning('系统名称不能为空');
+                        return;
+                    }
+                    if (!settingsForm.welcome_title.trim()) {
+                        ElMessage.warning('欢迎标题不能为空');
+                        return;
+                    }
+                    isSavingSettings.value = true;
+                    try {
+                        await axios.post(`${API_BASE}/settings/`, {
+                            site_name: settingsForm.site_name.trim(),
+                            welcome_title: settingsForm.welcome_title.trim(),
+                            welcome_subtitle: settingsForm.welcome_subtitle.trim(),
+                            site_icon: settingsForm.site_icon
+                        });
+                        // 更新本地状态
+                        Object.assign(siteSettings, {
+                            site_name: settingsForm.site_name.trim(),
+                            welcome_title: settingsForm.welcome_title.trim(),
+                            welcome_subtitle: settingsForm.welcome_subtitle.trim(),
+                            site_icon: settingsForm.site_icon
+                        });
+                        // 更新页面标题
+                        document.title = settingsForm.site_name.trim();
+                        ElMessage.success('系统设置保存成功！');
+                        showSettingsDialog.value = false;
+                    } catch (error) {
+                        ElMessage.error('保存设置失败，请检查网络');
+                    } finally {
+                        isSavingSettings.value = false;
+                    }
+                };
+
+                // 系统设置图标上传
+                const handleSettingsIconUpload = async (options) => {
+                    const uploadData = new FormData();
+                    uploadData.append('file', options.file);
+                    try {
+                        const res = await axios.post(`${API_BASE}/upload/cover`, uploadData, {
+                            headers: { 'Content-Type': 'multipart/form-data' }
+                        });
+                        settingsForm.site_icon = res.data.url;
+                        ElMessage.success('图标上传成功！');
+                    } catch (error) {
+                        ElMessage.error('图标上传失败');
+                    }
+                };
+
+                // 修改密码相关状态
+                const showChangePasswordDialog = ref(false);
+                const isChangingPassword = ref(false);
+                const changePasswordForm = reactive({
+                    oldPassword: '',
+                    newPassword: '',
+                    confirmPassword: ''
+                });
+
+                // 从 API 获取分类列表
+                const fetchCategories = async () => {
+                    try {
+                        const res = await axios.get(`${API_BASE}/categories/`);
+                        categoryList.value = res.data;
+                    } catch (error) {
+                        console.error('获取分类列表失败', error);
+                    }
+                };
+
+                // 打开分类管理对话框
+                const openCategoryManager = () => {
+                    showCategoryDialog.value = true;
+                };
+
+                // 添加分类
+                const handleAddCategory = async () => {
+                    const name = newCategoryName.value.trim();
+                    if (!name) {
+                        ElMessage.warning('请输入分类名称');
+                        return;
+                    }
+                    isAddingCategory.value = true;
+                    try {
+                        await axios.post(`${API_BASE}/categories/`, { name });
+                        ElMessage.success(`分类「${name}」创建成功`);
+                        newCategoryName.value = '';
+                        await fetchCategories();
+                    } catch (error) {
+                        if (error.response?.data?.detail) {
+                            ElMessage.error(error.response.data.detail);
+                        } else {
+                            ElMessage.error('创建分类失败');
+                        }
+                    } finally {
+                        isAddingCategory.value = false;
+                    }
+                };
+
+                // 删除分类
+                const handleDeleteCategory = async (id, name) => {
+                    try {
+                        await ElMessageBox.confirm(
+                            `确定要删除分类「${name}」吗？`,
+                            '删除确认',
+                            { confirmButtonText: '确定删除', cancelButtonText: '取消', type: 'warning' }
+                        );
+                        await axios.delete(`${API_BASE}/categories/${id}`);
+                        ElMessage.success(`分类「${name}」已删除`);
+                        await fetchCategories();
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            ElMessage.error('删除分类失败');
+                        }
+                    }
+                };
+
+                // 修改访问密码
+                const handleChangePassword = async () => {
+                    const { oldPassword, newPassword, confirmPassword } = changePasswordForm;
+                    
+                    // 表单校验
+                    if (!oldPassword) {
+                        ElMessage.warning('请输入原密码');
+                        return;
+                    }
+                    if (!newPassword) {
+                        ElMessage.warning('请输入新密码');
+                        return;
+                    }
+                    if (newPassword.length < 4) {
+                        ElMessage.warning('新密码长度不能少于 4 位');
+                        return;
+                    }
+                    if (newPassword !== confirmPassword) {
+                        ElMessage.warning('两次输入的新密码不一致');
+                        return;
+                    }
+
+                    isChangingPassword.value = true;
+                    try {
+                        const res = await axios.post(`${API_BASE}/settings/change-password`, {
+                            old_password: oldPassword,
+                            new_password: newPassword,
+                            confirm_password: confirmPassword
+                        });
+                        
+                        // 修改成功，更新 localStorage 中的 token
+                        localStorage.setItem('reading_tracker_token', newPassword);
+                        axios.defaults.headers.common['X-Auth-Token'] = newPassword;
+                        
+                        ElMessage.success('密码修改成功！');
+                        showChangePasswordDialog.value = false;
+                        // 清空表单
+                        changePasswordForm.oldPassword = '';
+                        changePasswordForm.newPassword = '';
+                        changePasswordForm.confirmPassword = '';
+                    } catch (error) {
+                        if (error.response?.data?.detail) {
+                            ElMessage.error(error.response.data.detail);
+                        } else {
+                            ElMessage.error('密码修改失败，请检查网络');
+                        }
+                    } finally {
+                        isChangingPassword.value = false;
+                    }
+                };
+
+                // 计算属性：从 API 分类列表 + 书籍中已有的分类合并去重
+                const availableCategories = computed(() => {
+                    const cats = new Set();
+                    // 1. 从 API 获取的分类列表
+                    categoryList.value.forEach(cat => {
+                        if (cat.name && cat.name !== '未分类') {
+                            cats.add(cat.name);
+                        }
+                    });
+                    // 2. 从已有书籍中提取分类（兼容旧数据）
+                    books.value.forEach(book => {
+                        if (book.category && book.category !== '未分类') {
+                            cats.add(book.category);
+                        }
+                    });
+                    return Array.from(cats).sort();
+                });
+
+                // 计算属性：模糊搜索 + 分类筛选
+                const filteredBooks = computed(() => {
+                    let result = books.value;
+                    // 按书名搜索
+                    if (searchQuery.value) {
+                        result = result.filter(book => book.title.includes(searchQuery.value));
+                    }
+                    // 按分类筛选
+                    if (categoryFilter.value) {
+                        result = result.filter(book => book.category === categoryFilter.value);
+                    }
+                    return result;
+                });
+
+                // 计算属性：统计数据
+                const totalBooks = computed(() => books.value.length);
+                const readingBooks = computed(() => books.value.filter(book => book.status === '阅读中' || book.status === '正在听').length);
+                const completedBooks = computed(() => books.value.filter(book => book.status === '已读完' || book.status === '已听完').length);
+
+                // 获取所有书籍列表
+                const fetchBooks = async () => {
+                    try {
+                        const res = await axios.get(`${API_BASE}/books/`);
+                        books.value = res.data;
+                        
+                        // 补充获取每本书的最新 platform
+                        for(let book of books.value) {
+                            try {
+                                const logsRes = await axios.get(`${API_BASE}/books/${book.id}/logs`);
+                                book.logs = logsRes.data;
+                            } catch(e) {}
+                        }
+                        
+                        // 需求三：数据获取完成后，渲染分类占比饼图
+                        renderCategoryChart();
+                    } catch (error) {
+                        if (error.response && error.response.status !== 401) {
+                            ElMessage.error('无法连接到后端数据库，请检查网络');
+                        }
+                        console.error(error);
+                    }
+                };
+
+                // 需求三：渲染藏书分类占比饼图
+                let categoryChartInstance = null;
+                const renderCategoryChart = () => {
+                    const chartDom = document.getElementById('categoryChart');
+                    if (!chartDom) return;
+                    
+                    // 如果已有实例，先销毁再重建（确保数据刷新）
+                    if (categoryChartInstance) {
+                        categoryChartInstance.dispose();
+                    }
+                    categoryChartInstance = echarts.init(chartDom);
+                    
+                    // 统计各分类的书籍数量
+                    const categoryMap = {};
+                    books.value.forEach(book => {
+                        const cat = book.category && book.category !== '未分类' ? book.category : '未分类';
+                        categoryMap[cat] = (categoryMap[cat] || 0) + 1;
+                    });
+                    
+                    // 转换为 ECharts 数据格式，按数量降序排列
+                    const sortedData = Object.entries(categoryMap)
+                        .map(([name, value]) => ({ name, value }))
+                        .sort((a, b) => b.value - a.value);
+                    
+                    // 定义一组柔和的配色
+                    const colorPalette = [
+                        '#4f46e5', '#10b981', '#f59e0b', '#ef4444',
+                        '#8b5cf6', '#06b6d4', '#f97316', '#ec4899',
+                        '#14b8a6', '#6366f1', '#84cc16', '#d946ef'
+                    ];
+                    
+                    const option = {
+                        tooltip: {
+                            trigger: 'item',
+                            formatter: '{b}: {c} 本 ({d}%)'
+                        },
+                        legend: {
+                            orient: 'vertical',
+                            right: '2%',
+                            top: 'center',
+                            textStyle: { fontSize: 10, color: '#6b7280' },
+                            itemWidth: 8,
+                            itemHeight: 8,
+                            itemGap: 4
+                        },
+                        series: [
+                            {
+                                type: 'pie',
+                                radius: ['30%', '60%'],
+                                center: ['32%', '50%'],
+                                avoidLabelOverlap: true,
+                                padAngle: 2,
+                                itemStyle: {
+                                    borderRadius: 4,
+                                    borderColor: '#fff',
+                                    borderWidth: 1
+                                },
+                                label: {
+                                    show: false
+                                },
+                                emphasis: {
+                                    label: {
+                                        show: true,
+                                        fontSize: 12,
+                                        fontWeight: 'bold'
+                                    },
+                                    itemStyle: {
+                                        shadowBlur: 8,
+                                        shadowOffsetX: 0,
+                                        shadowColor: 'rgba(0, 0, 0, 0.2)'
+                                    }
+                                },
+                                labelLine: {
+                                    show: false
+                                },
+                                data: sortedData,
+                                color: colorPalette
+                            }
+                        ]
+                    };
+                    
+                    categoryChartInstance.setOption(option);
+                    
+                    // 窗口大小变化时自适应
+                    const resizeHandler = () => {
+                        categoryChartInstance && categoryChartInstance.resize();
+                    };
+                    window.removeEventListener('resize', resizeHandler);
+                    window.addEventListener('resize', resizeHandler);
+                };
+
+                // 提交逻辑
+                const handleCheckAndSubmit = async () => {
+                    if (!formData.title || !formData.platform) {
+                        ElMessage.warning('书名和平台不能为空哦！');
+                        return;
+                    }
+                    isSubmitting.value = true;
+                    try {
+                        const checkRes = await axios.get(`${API_BASE}/books/check`, { params: { title: formData.title } });
+                        
+                        if (checkRes.data.exists) {
+                            await ElMessageBox.confirm(
+                                '此书已在书架中，是否要增加一次新的阅读记录？',
+                                '发现重复书籍',
+                                { confirmButtonText: '增加记录', cancelButtonText: '取消', type: 'info' }
+                            );
+                            await axios.post(`${API_BASE}/books/${checkRes.data.book_id}/logs`, {
+                                platform: formData.platform,
+                                status: formData.status,
+                                start_date: formData.startDate,
+                                progress: formData.progress || null,
+                                notes: formData.notes || null
+                            });
+                            ElMessage.success('成功追加一条阅读记录！');
+                        } else {
+                            await axios.post(`${API_BASE}/books/`, {
+                                title: formData.title,
+                                cover: formData.cover,
+                                category: formData.category || '未分类',
+                                rating: formData.rating || 0,
+                                read_url: formData.read_url || null,  // 需求一：阅读链接
+                                log: {
+                                    platform: formData.platform,
+                                    status: formData.status,
+                                    start_date: formData.startDate,
+                                    progress: formData.progress || null,
+                                    notes: formData.notes || null
+                                }
+                            });
+                            ElMessage.success('新书录入成功！');
+                        }
+                        showAddDialog.value = false;
+                        fetchBooks();
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            ElMessage.error('操作失败，请检查网络');
+                        }
+                    } finally {
+                        isSubmitting.value = false;
+                    }
+                };
+
+                // 打开时间轴抽屉
+                const openTimeline = async (book) => {
+                    currentBookTitle.value = book.title;
+                    currentLogs.value = [];
+                    // 保存当前书籍的分类和评分信息
+                    currentBookInfo.value = {
+                        category: book.category,
+                        rating: book.rating
+                    };
+                    showTimeline.value = true;
+                    try {
+                        const res = await axios.get(`${API_BASE}/books/${book.id}/logs`);
+                        currentLogs.value = res.data;
+                    } catch (error) {
+                        ElMessage.error('获取阅读记录失败');
+                    }
+                };
+
+                // 删除阅读记录
+                const deleteLog = async (logId, bookId) => {
+                    try {
+                        await ElMessageBox.confirm(
+                            '确定要删除这条阅读记录吗？',
+                            '删除确认',
+                            { confirmButtonText: '确定删除', cancelButtonText: '取消', type: 'error' }
+                        );
+                        
+                        await axios.delete(`${API_BASE}/logs/${logId}`);
+                        ElMessage.success('删除成功！');
+                        
+                        const res = await axios.get(`${API_BASE}/books/${bookId}/logs`);
+                        currentLogs.value = res.data;
+                        fetchBooks();
+                        
+                        if(currentLogs.value.length === 0) {
+                            showTimeline.value = false;
+                        }
+                    } catch (error) {
+                        if (error !== 'cancel') {
+                            ElMessage.error('删除失败');
+                        }
+                    }
+                };
+
+                // 需求二：快捷更新阅读进度
+                const quickUpdateProgress = async (book) => {
+                    // 找到该书最新一条阅读记录的 ID
+                    let logId = null;
+                    try {
+                        const logsRes = await axios.get(`${API_BASE}/books/${book.id}/logs`);
+                        const logs = logsRes.data;
+                        if (logs && logs.length > 0) {
+                            logId = logs[0].id;
+                        }
+                    } catch (e) {
+                        ElMessage.error('获取阅读记录失败');
+                        return;
+                    }
+
+                    if (!logId) {
+                        ElMessage.warning('该书暂无阅读记录，无法更新进度');
+                        return;
+                    }
+
+                    try {
+                        const { value } = await ElMessageBox.prompt(
+                            `更新《${book.title}》的阅读进度`,
+                            '✏️ 更新进度',
+                            {
+                                confirmButtonText: '保存',
+                                cancelButtonText: '取消',
+                                inputPlaceholder: '如：第823章、50%、看到第3卷...',
+                                inputValue: book.progress || '',
+                                inputPattern: /.+/,
+                                inputErrorMessage: '进度内容不能为空',
+                                closeOnClickModal: false,
+                                distinguishCancelAndClose: true
+                            }
+                        );
+
+                        // 调用 PATCH 接口快速更新进度
+                        await axios.patch(`${API_BASE}/logs/${logId}/progress`, {
+                            progress: value
+                        });
+
+                        ElMessage.success('进度更新成功！');
+                        // 局部刷新：更新当前书籍的 progress 字段
+                        book.progress = value;
+                        // 同时刷新后端数据以保持一致性
+                        fetchBooks();
+                    } catch (error) {
+                        if (error === 'cancel' || error === 'close') {
+                            // 用户取消或点击关闭，不做任何操作
+                            return;
+                        }
+                        if (error.response?.data?.detail) {
+                            ElMessage.error(error.response.data.detail);
+                        } else {
+                            ElMessage.error('进度更新失败，请检查网络');
+                        }
+                    }
+                };
+
+                // 打开编辑书籍对话框
+                const openEditDialog = () => {
+                    const book = books.value.find(b => b.title === currentBookTitle.value);
+                    if (book) {
+                        editingBookId.value = book.id;
+                        editForm.title = book.title;
+                        editForm.cover = book.cover || '';
+                        editForm.category = book.category || '未分类';
+                        editForm.rating = book.rating || 0;
+                        editForm.read_url = book.read_url || '';  // 需求一：阅读链接
+                        showEditDialog.value = true;
+                    }
+                };
+
+                // 提交编辑书籍
+                const handleEditSubmit = async () => {
+                    if (!editForm.title) {
+                        ElMessage.warning('书名不能为空！');
+                        return;
+                    }
+                    isEditing.value = true;
+                    try {
+                        await axios.put(`${API_BASE}/books/${editingBookId.value}`, {
+                            title: editForm.title,
+                            cover: editForm.cover,
+                            category: editForm.category,
+                            rating: editForm.rating,
+                            read_url: editForm.read_url || null  // 需求一：阅读链接
+                        });
+                        ElMessage.success('书籍信息更新成功！');
+                        showEditDialog.value = false;
+                        await fetchBooks();
+                        currentBookTitle.value = editForm.title;
+                    } catch (error) {
+                        if (error.response?.data?.detail) {
+                            ElMessage.error(error.response.data.detail);
+                        } else {
+                            ElMessage.error('更新失败，请检查网络');
+                        }
+                    } finally {
+                        isEditing.value = false;
+                    }
+                };
+
+                // 打开编辑阅读记录对话框
+                const openEditLogDialog = (log) => {
+                    editingLogId.value = log.id;
+                    editLogForm.platform = log.platform;
+                    editLogForm.status = log.status;
+                    editLogForm.startDate = formatDate(log.start_date);
+                    editLogForm.progress = log.progress || '';
+                    editLogForm.notes = log.notes || '';
+                    showEditLogDialog.value = true;
+                };
+
+                // 提交编辑阅读记录
+                const handleEditLogSubmit = async () => {
+                    if (!editLogForm.platform) {
+                        ElMessage.warning('平台不能为空！');
+                        return;
+                    }
+                    isEditingLog.value = true;
+                    try {
+                        await axios.put(`${API_BASE}/logs/${editingLogId.value}`, {
+                            platform: editLogForm.platform,
+                            status: editLogForm.status,
+                            start_date: editLogForm.startDate || null,
+                            progress: editLogForm.progress || null,
+                            notes: editLogForm.notes || null
+                        });
+                        ElMessage.success('阅读记录更新成功！');
+                        showEditLogDialog.value = false;
+                        // 刷新当前时间轴的阅读记录
+                        const res = await axios.get(`${API_BASE}/books/${currentLogs.value[0]?.book_id}/logs`);
+                        currentLogs.value = res.data;
+                        fetchBooks();
+                    } catch (error) {
+                        if (error.response?.data?.detail) {
+                            ElMessage.error(error.response.data.detail);
+                        } else {
+                            ElMessage.error('更新失败，请检查网络');
+                        }
+                    } finally {
+                        isEditingLog.value = false;
+                    }
+                };
+
+                // 需求三：分类筛选变化时
+                const onCategoryFilterChange = (value) => {
+                    categoryFilter.value = value || '';
+                };
+
+                // 需求四：导出备份
+                const handleExport = async () => {
+                    try {
+                        const res = await axios.get(`${API_BASE}/export`);
+                        const today = new Date().toISOString().split('T')[0];
+                        const filename = `reading_backup_${today}.json`;
+                        const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = filename;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                        ElMessage.success(`备份文件 ${filename} 已下载！`);
+                    } catch (error) {
+                        ElMessage.error('导出备份失败，请检查网络');
+                        console.error(error);
+                    }
+                };
+
+                // 需求四：导入备份 - 触发文件选择
+                const importFileInput = ref(null);
+                const triggerImport = () => {
+                    importFileInput.value?.click();
+                };
+
+                // ==========================================
+                // 需求四：设置下拉菜单命令处理
+                // ==========================================
+                const handleSettingsCommand = (command) => {
+                    switch (command) {
+                        case 'settings':
+                            openSettingsDialog();
+                            break;
+                        case 'category':
+                            openCategoryManager();
+                            break;
+                        case 'import':
+                            triggerImport();
+                            break;
+                        case 'export':
+                            handleExport();
+                            break;
+                        case 'changePassword':
+                            showChangePasswordDialog.value = true;
+                            break;
+                        case 'lock':
+                            handleLogout();
+                            break;
+                        case 'darkmode':
+                            toggleDarkMode();
+                            break;
+                    }
+                };
+
+                // 需求四：导入备份 - 读取并上传 JSON 文件
+                const handleImport = async (event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+
+                    // 检查文件类型
+                    if (!file.name.endsWith('.json')) {
+                        ElMessage.error('请选择 JSON 格式的备份文件');
+                        event.target.value = '';
+                        return;
+                    }
+
+                    try {
+                        // 读取文件内容
+                        const text = await file.text();
+                        const data = JSON.parse(text);
+
+                        // 验证备份文件格式
+                        if (!data.books || !Array.isArray(data.books)) {
+                            ElMessage.error('备份文件格式无效，缺少 books 字段');
+                            event.target.value = '';
+                            return;
+                        }
+
+                        // 确认导入
+                        try {
+                            await ElMessageBox.confirm(
+                                `即将导入 ${data.books.length} 本书籍数据（书名重复的书籍将自动跳过），是否继续？`,
+                                '导入备份确认',
+                                { confirmButtonText: '开始导入', cancelButtonText: '取消', type: 'info' }
+                            );
+                        } catch {
+                            event.target.value = '';
+                            return;
+                        }
+
+                        // 发送导入请求
+                        const res = await axios.post(`${API_BASE}/import`, data);
+                        ElMessage.success(res.data.message);
+                        event.target.value = '';
+                        // 刷新数据
+                        fetchBooks();
+                        fetchCategories();
+                    } catch (error) {
+                        if (error.response?.data?.detail) {
+                            ElMessage.error(error.response.data.detail);
+                        } else if (error.name === 'SyntaxError') {
+                            ElMessage.error('备份文件格式错误，不是有效的 JSON 文件');
+                        } else if (error !== 'cancel') {
+                            ElMessage.error('导入备份失败，请检查文件格式');
+                        }
+                        console.error(error);
+                        event.target.value = '';
+                    }
+                };
+
+                // 封面上传前校验
+                const beforeCoverUpload = (file) => {
+                    const isImage = file.type.startsWith('image/');
+                    const isLt5M = file.size / 1024 / 1024 < 5;
+                    if (!isImage) {
+                        ElMessage.error('只能上传图片文件！');
+                        return false;
+                    }
+                    if (!isLt5M) {
+                        ElMessage.error('图片大小不能超过 5MB！');
+                        return false;
+                    }
+                    return true;
+                };
+
+                // 自定义封面上传处理
+                const handleCoverUpload = async (options) => {
+                    const uploadData = new FormData();
+                    uploadData.append('file', options.file);
+                    try {
+                        const res = await axios.post(`${API_BASE}/upload/cover`, uploadData, {
+                            headers: { 'Content-Type': 'multipart/form-data' }
+                        });
+                        if (showEditDialog.value) {
+                            editForm.cover = res.data.url;
+                        } else if (showAddDialog.value) {
+                            formData.cover = res.data.url;
+                        }
+                        ElMessage.success('封面上传成功！');
+                    } catch (error) {
+                        ElMessage.error('封面上传失败');
+                    }
+                };
+
+                // 辅助函数
+                const formatDate = (dateString) => {
+                    if (!dateString) return '未知时间';
+                    const date = new Date(dateString);
+                    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                };
+
+                const getStatusType = (status) => {
+                    // 兼容新旧文案
+                    if (status === '已读完' || status === '已听完') return 'success';
+                    if (status === '已弃坑') return 'info';
+                    return 'warning';
+                };
+
+                const getStatusEn = (status) => {
+                    // 兼容新旧文案
+                    if (status === '已读完' || status === '已听完') return 'completed';
+                    if (status === '已弃坑') return 'dropped';
+                    return 'reading';
+                };
+
+                const getPlatformClass = (platform) => {
+                    if (platform === '微信读书') return 'platform-wechat';
+                    if (platform === '喜马拉雅') return 'platform-ximalaya';
+                    if (platform === '本地文件') return 'platform-local';
+                    if (platform === '实体书') return 'platform-physical';
+                    return 'platform-other';
+                };
+
+                const resetForm = () => {
+                    formData.title = '';
+                    formData.platform = '微信读书';
+                    formData.status = '阅读中';
+                    formData.startDate = new Date().toISOString().split('T')[0];
+                    formData.cover = '';
+                    formData.progress = '';
+                    formData.notes = '';
+                    formData.category = '未分类';
+                    formData.rating = 0;
+                    formData.read_url = '';  // 需求一：阅读链接
+                };
+
+                const handleImageError = (e) => {
+                    e.target.style.display = 'none';
+                };
+
+                const onSiteIconError = (e) => {
+                    e.target.style.display = 'none';
+                };
+
+                onMounted(() => {
+                    // 先获取系统设置（包括自定义名称、欢迎语、图标）
+                    fetchSettings().then(() => {
+                        // 更新页面标题
+                        document.title = siteSettings.site_name;
+                    });
+                    if (isAuthenticated.value) {
+                        fetchBooks();
+                        fetchCategories();
+                    }
+                });
+
+                return {
+                    // 密码锁
+                    isAuthenticated, authPassword, isAuthLoading, authError, handleAuth, handleLogout,
+                    // 书籍数据
+                    books, searchQuery, categoryFilter, filteredBooks, availableCategories,
+                    totalBooks, readingBooks, completedBooks,
+                    // 录入
+                    showAddDialog, formData, isSubmitting, handleCheckAndSubmit, resetForm,
+                    // 时间轴
+                    showTimeline, currentBookTitle, currentBookInfo, currentLogs, openTimeline, deleteLog,
+                    // 辅助函数
+                    formatDate, getStatusType, getPlatformClass, getStatusEn, handleImageError, fetchBooks,
+                    // 编辑书籍
+                    showEditDialog, isEditing, editForm, openEditDialog, handleEditSubmit,
+                    // 需求二：快捷更新进度
+                    quickUpdateProgress,
+                    // 编辑阅读记录
+                    showEditLogDialog, isEditingLog, editLogForm, openEditLogDialog, handleEditLogSubmit,
+                    // 封面上传
+                    handleCoverUpload, beforeCoverUpload,
+                    // 分类筛选
+                    onCategoryFilterChange,
+                    // 导出/导入
+                    handleExport, importFileInput, triggerImport, handleImport,
+                    // 分类管理
+                    showCategoryDialog, categoryList, newCategoryName, isAddingCategory,
+                    fetchCategories, openCategoryManager, handleAddCategory, handleDeleteCategory,
+                    // 系统设置
+                    siteSettings, showSettingsDialog, isSavingSettings, settingsForm,
+                    openSettingsDialog, handleSaveSettings, handleSettingsIconUpload, onSiteIconError,
+                    // 修改密码
+                    showChangePasswordDialog, isChangingPassword, changePasswordForm, handleChangePassword,
+                    // 设置下拉菜单 & 夜间模式
+                    isDarkMode, handleSettingsCommand
+                };
+            }
+        });
+
+        // 安全注册图标组件
+        try {
+            if (window.ElementPlusIconsVue) {
+                for (const [key, component] of Object.entries(window.ElementPlusIconsVue)) {
+                    app.component(key, component);
+                }
+            }
+        } catch (e) {
+            console.warn('图标注册失败，部分图标可能无法显示:', e);
+        }
+
+        app.use(ElementPlus, { locale: ElementPlusLocaleZhCn });
+        
+        // 使用错误边界挂载应用，防止渲染错误导致白屏
+        let vm;
+        try {
+            vm = app.mount('#app');
+        } catch (e) {
+            console.error('Vue 应用挂载失败:', e);
+            // 降级显示：直接显示基本内容
+            document.getElementById('app').innerHTML = '<div style="padding:40px;text-align:center;"><h2>加载失败</h2><p>应用初始化出错，请刷新页面重试</p><button onclick="location.reload()" style="padding:8px 24px;border-radius:8px;border:none;background:#4f46e5;color:white;font-size:16px;cursor:pointer;">刷新页面</button></div>';
+        }
+        // 暴露 Vue 实例到全局，供 Axios 拦截器使用
+        window.__vueApp__ = vm;
+    </script>
+</body>
+</html>
