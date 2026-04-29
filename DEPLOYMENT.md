@@ -103,10 +103,11 @@ my-reading-tracker/
 
 系统在启动时会自动执行以下数据库维护操作：
 
-1. **自动建表**：首次启动时自动创建 `books`、`reading_logs`、`categories`、`system_config` 四张表
-2. **自动迁移**：检测旧表结构，自动添加缺失的列（如 `category`、`rating`、`read_url`、`progress`、`notes` 等）
-3. **默认分类初始化**：首次运行时自动创建默认分类（小说、历史、科技、哲学、心理学、经济管理、个人成长、其他）
-4. **密码初始化**：首次运行时自动创建默认管理员密码（SHA-256 哈希存储）
+1. **自动建表**：首次启动时自动创建 `books`、`reading_logs`、`categories`、`platforms`、`system_config` 五张表
+2. **自动迁移**：检测旧表结构，自动添加缺失的列（如 `category`、`rating`、`read_url`、`progress`、`notes`、`icon` 等）
+3. **默认分类初始化**：首次运行时自动创建默认分类（小说、历史、科技、哲学、心理学、经济管理、个人成长、其他），每个分类带有对应的 Emoji 图标
+4. **默认平台初始化**：首次运行时自动创建默认平台（微信读书、喜马拉雅、本地文件、实体书）
+5. **密码初始化**：首次运行时自动创建默认管理员密码（SHA-256 哈希存储）
 
 迁移日志会在服务启动时打印到控制台，无需手动干预。
 
@@ -250,22 +251,31 @@ environment:
 |------|------|------|
 | `GET` | `/api/categories/` | 获取所有分类列表 |
 | `POST` | `/api/categories/` | 创建新分类 |
+| `PUT` | `/api/categories/{category_id}` | 更新分类（名称、图标） |
 | `DELETE` | `/api/categories/{category_id}` | 删除指定分类 |
 
-### 4.4 封面上传接口
+### 4.4 平台管理接口
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/platforms/` | 获取所有平台列表 |
+| `POST` | `/api/platforms/` | 创建新平台 |
+| `DELETE` | `/api/platforms/{platform_id}` | 删除指定平台 |
+
+### 4.5 封面上传接口
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | `POST` | `/api/upload/cover` | 上传封面图片，返回可访问的 URL |
 
-### 4.5 数据备份接口
+### 4.6 数据备份接口
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | `GET` | `/api/export` | 导出所有书籍和阅读记录为 JSON |
 | `POST` | `/api/import` | 导入 JSON 格式的备份数据 |
 
-### 4.6 系统设置接口
+### 4.7 系统设置接口
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -273,7 +283,7 @@ environment:
 | `POST` | `/api/settings/` | 更新系统设置 |
 | `POST` | `/api/settings/change-password` | 修改管理员访问密码 |
 
-### 4.7 接口详细说明
+### 4.8 接口详细说明
 
 #### `POST /api/books/` - 录入新书
 
@@ -443,7 +453,8 @@ environment:
 **请求体**：
 ```json
 {
-  "name": "科幻"
+  "name": "科幻",
+  "icon": "🚀"
 }
 ```
 
@@ -452,7 +463,46 @@ environment:
 {
   "message": "分类创建成功",
   "id": 1,
-  "name": "科幻"
+  "name": "科幻",
+  "icon": "🚀"
+}
+```
+
+#### `PUT /api/categories/{category_id}` - 更新分类
+
+**请求体**：
+```json
+{
+  "name": "科幻小说（可选）",
+  "icon": "🌌（可选）"
+}
+```
+
+**响应**：
+```json
+{
+  "message": "分类更新成功",
+  "id": 1,
+  "name": "科幻小说",
+  "icon": "🌌"
+}
+```
+
+#### `POST /api/platforms/` - 创建新平台
+
+**请求体**：
+```json
+{
+  "name": "Kindle"
+}
+```
+
+**响应**：
+```json
+{
+  "message": "平台创建成功",
+  "id": 1,
+  "name": "Kindle"
 }
 ```
 
@@ -505,7 +555,7 @@ environment:
 }
 ```
 
-### 4.8 认证说明
+### 4.9 认证说明
 
 所有 `/api/` 开头的请求需要在请求头中携带 `X-Auth-Token` 字段，值为后端配置的访问密码。未携带或密码错误将返回 401 状态码：
 
