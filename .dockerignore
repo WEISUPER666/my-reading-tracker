@@ -1,0 +1,33 @@
+# 敏感配置文件
+.env
+.env.*
+!.env.example
+
+# 数据目录（通过 volume 挂载，不需要复制到镜像中）
+data/
+
+# Python 缓存
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# 虚拟环境
+venv/
+.venv/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# 文档和规划
+plans/
+*.md
+!README.md
+
+# 资源图片（部署时不需要）
+assets/

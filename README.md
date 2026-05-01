@@ -61,6 +61,15 @@
 
 ## ✨ 功能一览
 
+### 🤖 AI 阅读助手
+
+| 功能 | 说明 |
+|------|------|
+| **AI 智能对话** | 内置 AI 阅读助手，支持自然语言对话，帮你管理阅读记录 |
+| **Function Calling** | AI 助手可调用后端工具执行操作（如录入新书、查询书籍等） |
+| **可视化配置** | 在系统设置中通过界面配置 AI API Key、Base URL 和模型名称，无需手动编辑配置文件 |
+| **灵活的配置优先级** | 优先从数据库读取 AI 配置（通过界面设置），未配置时自动回退到 `.env` 环境变量 |
+
 ### 📚 书籍管理
 
 | 功能 | 说明 |
@@ -253,13 +262,19 @@
 ```
 my-reading-tracker/
 ├── main.py                  # 后端主文件，包含 API 接口定义和数据库模型
-├── index.html               # 前端页面（Vue 3 单页应用，含全部前端逻辑）
+├── index.html               # 前端页面（Vue 3 单页应用）
+├── static/                  # 前端静态资源
+│   ├── app.js               # 前端 JavaScript 逻辑（Vue 3 Composition API）
+│   └── style.css            # 前端样式文件
 ├── requirements.txt         # 后端依赖
 ├── Dockerfile               # Docker 构建文件
 ├── docker-compose.yml       # Docker Compose 配置文件
-├── .env                     # 环境变量配置文件（可选，需自行创建）
+├── .env.example             # 环境变量配置示例文件
+├── .dockerignore            # Docker 构建忽略文件
+├── .gitignore               # Git 忽略文件
 ├── README.md                # 项目说明文档（本文件）
 ├── DEPLOYMENT.md            # 部署说明文档
+├── assets/                  # 文档截图资源
 ├── data/                    # 数据库文件存储目录（自动创建）
 │   ├── books.db             # SQLite 数据库文件
 │   └── covers/              # 上传的封面图片存储目录
@@ -379,9 +394,15 @@ my-reading-tracker/
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| `GET` | `/api/settings/` | 获取所有系统设置（站点名称、欢迎语、图标等） |
-| `POST` | `/api/settings/` | 更新系统设置 |
+| `GET` | `/api/settings/` | 获取所有系统设置（站点名称、欢迎语、图标、AI 配置状态等） |
+| `POST` | `/api/settings/` | 更新系统设置（含 AI API Key、Base URL、模型名称） |
 | `POST` | `/api/settings/change-password` | 修改管理员访问密码 |
+
+### AI 聊天接口
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/api/chat` | AI 阅读助手聊天接口，支持 Function Calling |
 
 ### 认证说明
 
@@ -423,11 +444,18 @@ my-reading-tracker/
 
 ### 环境变量配置
 
-创建 `.env` 文件（与 [`main.py`](main.py) 同级）：
+创建 `.env` 文件（与 [`main.py`](main.py) 同级），可参考 [`.env.example`](.env.example)：
 ```env
 # 允许跨域访问的域名列表（逗号分隔）
 ALLOWED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
+
+# AI 阅读助手配置（可选，也可通过系统设置界面配置）
+AI_API_KEY=your_api_key_here
+AI_BASE_URL=https://api.deepseek.com
+AI_MODEL_NAME=deepseek-chat
 ```
+
+> **提示**：AI 配置支持两种方式：① 通过系统设置界面配置（优先级更高，存储在数据库中）；② 通过 `.env` 环境变量配置（作为回退）。两者只需配置其一即可。
 
 系统启动时会自动通过 `python-dotenv` 加载 `.env` 文件中的配置。
 
@@ -494,6 +522,15 @@ ALLOWED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
 ---
 
 ## 📝 更新日志
+
+### v1.2.0 (2026-05)
+
+- 🤖 **AI 阅读助手可视化配置**：系统设置新增「AI 配置」标签页，支持通过界面配置 AI API Key、Base URL 和模型名称，无需手动编辑 `.env` 文件
+- 🔐 **AI API Key 安全存储**：API Key 存储在数据库中，前端仅显示是否已配置（脱敏），不暴露完整密钥
+- 🔄 **AI 配置优先级机制**：优先从数据库读取 AI 配置（界面设置），未配置时自动回退到 `.env` 环境变量
+- 📂 **前端代码拆分**：将 CSS 和 JavaScript 从 `index.html` 中分离到独立的 `static/style.css` 和 `static/app.js` 文件，优化代码结构
+- 🐳 **Docker 配置优化**：`docker-compose.yml` 新增 `env_file` 支持，自动加载 `.env` 文件；新增 `.dockerignore` 文件，优化镜像构建
+- 📝 **`.gitignore` 完善**：新增 `.env.example` 示例文件，完善忽略规则（IDE 配置、操作系统文件、Python 构建产物等）
 
 ### v1.1.0 (2026-04)
 

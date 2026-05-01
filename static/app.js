@@ -184,11 +184,17 @@ const { createApp, ref, computed, onMounted, reactive, nextTick } = Vue;
                 });
                 const showSettingsDialog = ref(false);
                 const isSavingSettings = ref(false);
+                const settingsActiveTab = ref('basic');
                 const settingsForm = reactive({
                     site_name: '',
                     welcome_title: '',
                     welcome_subtitle: '',
-                    site_icon: ''
+                    site_icon: '',
+                    // AI 配置
+                    ai_api_key: '',
+                    ai_api_key_set: false,
+                    ai_base_url: '',
+                    ai_model_name: ''
                 });
 
                 // 从后端加载系统设置
@@ -207,6 +213,12 @@ const { createApp, ref, computed, onMounted, reactive, nextTick } = Vue;
                     settingsForm.welcome_title = siteSettings.welcome_title;
                     settingsForm.welcome_subtitle = siteSettings.welcome_subtitle;
                     settingsForm.site_icon = siteSettings.site_icon;
+                    // AI 配置
+                    settingsForm.ai_api_key = '';  // 不回显密钥，留空表示不修改
+                    settingsForm.ai_api_key_set = siteSettings.ai_api_key_set;
+                    settingsForm.ai_base_url = siteSettings.ai_base_url;
+                    settingsForm.ai_model_name = siteSettings.ai_model_name;
+                    settingsActiveTab.value = 'basic';
                     showSettingsDialog.value = true;
                 };
 
@@ -222,18 +234,32 @@ const { createApp, ref, computed, onMounted, reactive, nextTick } = Vue;
                     }
                     isSavingSettings.value = true;
                     try {
-                        await axios.post(`${API_BASE}/settings/`, {
+                        const payload = {
                             site_name: settingsForm.site_name.trim(),
                             welcome_title: settingsForm.welcome_title.trim(),
                             welcome_subtitle: settingsForm.welcome_subtitle.trim(),
                             site_icon: settingsForm.site_icon
-                        });
+                        };
+                        // AI 配置：仅在用户填写了 API Key 时才发送（留空表示不修改）
+                        if (settingsForm.ai_api_key) {
+                            payload.ai_api_key = settingsForm.ai_api_key;
+                        }
+                        if (settingsForm.ai_base_url) {
+                            payload.ai_base_url = settingsForm.ai_base_url.trim();
+                        }
+                        if (settingsForm.ai_model_name) {
+                            payload.ai_model_name = settingsForm.ai_model_name.trim();
+                        }
+                        await axios.post(`${API_BASE}/settings/`, payload);
                         // 更新本地状态
                         Object.assign(siteSettings, {
                             site_name: settingsForm.site_name.trim(),
                             welcome_title: settingsForm.welcome_title.trim(),
                             welcome_subtitle: settingsForm.welcome_subtitle.trim(),
-                            site_icon: settingsForm.site_icon
+                            site_icon: settingsForm.site_icon,
+                            ai_api_key_set: settingsForm.ai_api_key ? true : siteSettings.ai_api_key_set,
+                            ai_base_url: settingsForm.ai_base_url.trim() || siteSettings.ai_base_url,
+                            ai_model_name: settingsForm.ai_model_name.trim() || siteSettings.ai_model_name
                         });
                         // 更新页面标题
                         document.title = settingsForm.site_name.trim();
@@ -1188,7 +1214,7 @@ const { createApp, ref, computed, onMounted, reactive, nextTick } = Vue;
                     showPlatformDialog, platformList, newPlatformName, isAddingPlatform,
                     fetchPlatforms, openPlatformManager, handleAddPlatform, handleDeletePlatform,
                     // 系统设置
-                    siteSettings, showSettingsDialog, isSavingSettings, settingsForm,
+                    siteSettings, showSettingsDialog, isSavingSettings, settingsActiveTab, settingsForm,
                     openSettingsDialog, handleSaveSettings, handleSettingsIconUpload, onSiteIconError,
                     // 修改密码
                     showChangePasswordDialog, isChangingPassword, changePasswordForm, handleChangePassword,

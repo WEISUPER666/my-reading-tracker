@@ -629,40 +629,90 @@
         </el-dialog>
 
         <!-- 系统设置对话框 -->
-        <el-dialog v-model="showSettingsDialog" title="系统设置" width="520px" destroy-on-close>
-            <el-form :model="settingsForm" label-width="100px" label-position="left">
-                <el-form-item label="系统名称" required>
-                    <el-input v-model="settingsForm.site_name" placeholder="如：个人阅读档案"></el-input>
-                </el-form-item>
-                <el-form-item label="欢迎标题">
-                    <el-input v-model="settingsForm.welcome_title" placeholder="如：欢迎回来，阅读者 👋" type="textarea" :rows="2"></el-input>
-                </el-form-item>
-                <el-form-item label="欢迎副标题">
-                    <el-input
-                        v-model="settingsForm.welcome_subtitle"
-                        placeholder="如：今天又读了什么好书？赶快记录下你的阅读进度或听书历程吧。每一次记录都是灵魂的脚印。"
-                        type="textarea"
-                        :rows="3">
-                    </el-input>
-                </el-form-item>
-                <el-form-item label="系统图标">
-                    <div style="display: flex; gap: 8px; align-items: center;">
-                        <div style="width: 40px; height: 40px; border-radius: 10px; overflow: hidden; flex-shrink: 0; background: linear-gradient(135deg, #4f46e5, #818cf8); display: flex; align-items: center; justify-content: center;">
-                            <img v-if="settingsForm.site_icon" :src="settingsForm.site_icon" style="width:100%;height:100%;object-fit:cover;" @error="settingsForm.site_icon = ''">
-                            <el-icon v-else style="font-size:20px;color:white;"><Reading /></el-icon>
-                        </div>
-                        <el-input v-model="settingsForm.site_icon" placeholder="输入图标图片链接" style="flex: 1;"></el-input>
-                        <el-upload
-                            :show-file-list="false"
-                            :http-request="handleSettingsIconUpload"
-                            accept="image/*"
-                            :before-upload="beforeCoverUpload">
-                            <el-button icon="Upload" type="primary">本地上传</el-button>
-                        </el-upload>
-                    </div>
-                    <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">建议尺寸：200×200px 以内的正方形图片</div>
-                </el-form-item>
-            </el-form>
+        <el-dialog v-model="showSettingsDialog" title="系统设置" width="580px" destroy-on-close>
+            <el-tabs v-model="settingsActiveTab">
+                <!-- 基本设置 Tab -->
+                <el-tab-pane label="基本设置" name="basic">
+                    <el-form :model="settingsForm" label-width="100px" label-position="left" style="padding-top: 8px;">
+                        <el-form-item label="系统名称" required>
+                            <el-input v-model="settingsForm.site_name" placeholder="如：个人阅读档案"></el-input>
+                        </el-form-item>
+                        <el-form-item label="欢迎标题">
+                            <el-input v-model="settingsForm.welcome_title" placeholder="如：欢迎回来，阅读者 👋" type="textarea" :rows="2"></el-input>
+                        </el-form-item>
+                        <el-form-item label="欢迎副标题">
+                            <el-input
+                                v-model="settingsForm.welcome_subtitle"
+                                placeholder="如：今天又读了什么好书？赶快记录下你的阅读进度或听书历程吧。每一次记录都是灵魂的脚印。"
+                                type="textarea"
+                                :rows="3">
+                            </el-input>
+                        </el-form-item>
+                        <el-form-item label="系统图标">
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <div style="width: 40px; height: 40px; border-radius: 10px; overflow: hidden; flex-shrink: 0; background: linear-gradient(135deg, #4f46e5, #818cf8); display: flex; align-items: center; justify-content: center;">
+                                    <img v-if="settingsForm.site_icon" :src="settingsForm.site_icon" style="width:100%;height:100%;object-fit:cover;" @error="settingsForm.site_icon = ''">
+                                    <el-icon v-else style="font-size:20px;color:white;"><Reading /></el-icon>
+                                </div>
+                                <el-input v-model="settingsForm.site_icon" placeholder="输入图标图片链接" style="flex: 1;"></el-input>
+                                <el-upload
+                                    :show-file-list="false"
+                                    :http-request="handleSettingsIconUpload"
+                                    accept="image/*"
+                                    :before-upload="beforeCoverUpload">
+                                    <el-button icon="Upload" type="primary">本地上传</el-button>
+                                </el-upload>
+                            </div>
+                            <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">建议尺寸：200×200px 以内的正方形图片</div>
+                        </el-form-item>
+                    </el-form>
+                </el-tab-pane>
+
+                <!-- AI 配置 Tab -->
+                <el-tab-pane label="🤖 AI 配置" name="ai">
+                    <el-form :model="settingsForm" label-width="100px" label-position="left" style="padding-top: 8px;">
+                        <el-form-item label="API Key" required>
+                            <el-input
+                                v-model="settingsForm.ai_api_key"
+                                placeholder="输入你的 API Key"
+                                type="password"
+                                show-password>
+                            </el-input>
+                            <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">
+                                <span v-if="settingsForm.ai_api_key_set && !settingsForm.ai_api_key">✅ 已配置（留空则不修改）</span>
+                                <span v-else>支持 DeepSeek、OpenAI 等兼容接口</span>
+                            </div>
+                        </el-form-item>
+                        <el-form-item label="Base URL">
+                            <el-input
+                                v-model="settingsForm.ai_base_url"
+                                placeholder="如：https://api.deepseek.com">
+                            </el-input>
+                            <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">
+                                DeepSeek: https://api.deepseek.com &nbsp;|&nbsp; OpenAI: https://api.openai.com/v1
+                            </div>
+                        </el-form-item>
+                        <el-form-item label="模型名称">
+                            <el-input
+                                v-model="settingsForm.ai_model_name"
+                                placeholder="如：deepseek-chat">
+                            </el-input>
+                            <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">
+                                DeepSeek: deepseek-chat &nbsp;|&nbsp; OpenAI: gpt-4o / gpt-3.5-turbo
+                            </div>
+                        </el-form-item>
+                        <el-alert
+                            type="info"
+                            :closable="false"
+                            show-icon
+                            style="margin-top: 8px;">
+                            <template #title>
+                                <span style="font-size: 13px;">配置保存在服务器数据库中，优先级高于 .env 文件。修改后立即生效，无需重启服务。</span>
+                            </template>
+                        </el-alert>
+                    </el-form>
+                </el-tab-pane>
+            </el-tabs>
             <template #footer>
                 <span class="dialog-footer">
                     <el-button @click="showSettingsDialog = false" round>取消</el-button>

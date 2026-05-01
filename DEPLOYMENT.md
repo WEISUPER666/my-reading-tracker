@@ -155,6 +155,8 @@ services:
       - "8000:8000"             # 宿主机端口映射到容器 8000 端口
     volumes:
       - ./data:/app/data        # 数据持久化：宿主机 ./data 挂载到容器 /app/data
+    env_file:
+      - .env                    # 自动加载 .env 文件中的环境变量
     environment:
       - TZ=Asia/Shanghai        # 设置时区为亚洲/上海
     restart: unless-stopped     # 容器退出时自动重启（除非手动停止）
@@ -169,6 +171,7 @@ volumes:
 | **端口映射** | 容器暴露 `8000` 端口，默认映射到主机的 `8000` 端口 |
 | **数据持久化** | `./data` 目录挂载到容器的 `/app/data` 目录，确保数据不丢失 |
 | **封面图片** | 上传后存储在 `./data/covers/` 目录，通过卷挂载持久化 |
+| **环境变量文件** | `env_file: .env` 自动加载项目根目录的 `.env` 文件，无需在 `environment` 中重复配置 |
 | **时区** | 环境变量 `TZ=Asia/Shanghai` 设置容器时区 |
 | **重启策略** | `restart: unless-stopped` 确保容器在重启后自动启动 |
 
@@ -192,7 +195,12 @@ volumes:
 | 环境变量 | 说明 | 默认值 | 示例 |
 |----------|------|--------|------|
 | `ALLOWED_ORIGINS` | 允许跨域访问的域名列表（逗号分隔） | `http://localhost:8000,http://127.0.0.1:8000` | `https://books.example.com,https://admin.example.com` |
+| `AI_API_KEY` | AI 阅读助手的 API Key（可选，也可通过系统设置界面配置） | 空 | `sk-xxxxxxxxxxxxxxxx` |
+| `AI_BASE_URL` | AI 服务的 API 基础地址 | `https://api.deepseek.com` | `https://api.openai.com/v1` |
+| `AI_MODEL_NAME` | AI 模型名称 | `deepseek-chat` | `gpt-4o` |
 | `TZ` | 容器时区（仅 Docker 部署） | `Asia/Shanghai` | `America/New_York` |
+
+> **AI 配置优先级**：系统设置界面配置（存储在数据库中） > `.env` 环境变量。两者只需配置其一即可。
 
 ### 设置环境变量
 
@@ -207,14 +215,19 @@ export ALLOWED_ORIGINS=https://books.example.com
 ```
 
 **使用 `.env` 文件（所有平台）**：
-在项目根目录创建 `.env` 文件：
+在项目根目录创建 `.env` 文件（可参考 [`.env.example`](.env.example)）：
 ```env
 ALLOWED_ORIGINS=https://books.example.com
+
+# AI 阅读助手配置（可选，也可通过系统设置界面配置）
+AI_API_KEY=sk-xxxxxxxxxxxxxxxx
+AI_BASE_URL=https://api.deepseek.com
+AI_MODEL_NAME=deepseek-chat
 ```
 系统启动时会自动通过 `python-dotenv` 加载该文件。
 
 **Docker 部署**：
-在 [`docker-compose.yml`](docker-compose.yml) 的 `environment` 中添加：
+[`docker-compose.yml`](docker-compose.yml) 已配置 `env_file: .env`，会自动加载项目根目录的 `.env` 文件。也可以在 `environment` 中直接添加：
 ```yaml
 environment:
   - ALLOWED_ORIGINS=https://books.example.com
@@ -279,11 +292,17 @@ environment:
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| `GET` | `/api/settings/` | 获取所有系统设置（站点名称、欢迎语、图标等） |
-| `POST` | `/api/settings/` | 更新系统设置 |
+| `GET` | `/api/settings/` | 获取所有系统设置（站点名称、欢迎语、图标、AI 配置状态等） |
+| `POST` | `/api/settings/` | 更新系统设置（含 AI API Key、Base URL、模型名称） |
 | `POST` | `/api/settings/change-password` | 修改管理员访问密码 |
 
-### 4.8 接口详细说明
+### 4.8 AI 聊天接口
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/api/chat` | AI 阅读助手聊天接口，支持 Function Calling |
+
+### 4.9 接口详细说明
 
 #### `POST /api/books/` - 录入新书
 
@@ -514,9 +533,14 @@ environment:
   "site_name": "个人阅读档案",
   "welcome_title": "欢迎回来，阅读者 👋",
   "welcome_subtitle": "今天又读了什么好书？赶快记录下你的阅读进度或听书历程吧。每一次记录都是灵魂的脚印。",
-  "site_icon": ""
+  "site_icon": "",
+  "ai_api_key_set": true,
+  "ai_base_url": "https://api.deepseek.com",
+  "ai_model_name": "deepseek-chat"
 }
 ```
+
+> **注意**：`ai_api_key_set` 为布尔值，仅表示是否已配置 API Key，不会暴露完整密钥。
 
 #### `POST /api/settings/` - 更新系统设置
 
@@ -526,7 +550,10 @@ environment:
   "site_name": "我的书阁（可选）",
   "welcome_title": "欢迎回来（可选）",
   "welcome_subtitle": "新的欢迎语（可选）",
-  "site_icon": "/covers/icon.jpg（可选）"
+  "site_icon": "/covers/icon.jpg（可选）",
+  "ai_api_key": "sk-xxxxxxxx（可选，留空表示不修改）",
+  "ai_base_url": "https://api.deepseek.com（可选）",
+  "ai_model_name": "deepseek-chat（可选）"
 }
 ```
 
@@ -536,6 +563,28 @@ environment:
   "message": "系统设置更新成功"
 }
 ```
+
+#### `POST /api/chat` - AI 阅读助手聊天
+
+**请求体**：
+```json
+{
+  "message": "帮我查一下我读过哪些科幻小说",
+  "history": [
+    {"role": "user", "content": "你好"},
+    {"role": "assistant", "content": "你好！我是你的 AI 阅读助手，有什么可以帮你的？"}
+  ]
+}
+```
+
+**响应**：
+```json
+{
+  "reply": "根据你的阅读记录，你读过以下科幻小说：\n1. 三体 - 已读完\n2. 银河帝国 - 阅读中"
+}
+```
+
+> **说明**：AI 聊天接口支持 Function Calling，AI 助手可以自动调用后端工具（如查询书籍、录入新书等）来完成用户的请求。AI 配置优先从数据库读取（通过系统设置界面配置），未配置时回退到 `.env` 环境变量。
 
 #### `POST /api/settings/change-password` - 修改访问密码
 
@@ -555,7 +604,7 @@ environment:
 }
 ```
 
-### 4.9 认证说明
+### 4.10 认证说明
 
 所有 `/api/` 开头的请求需要在请求头中携带 `X-Auth-Token` 字段，值为后端配置的访问密码。未携带或密码错误将返回 401 状态码：
 
@@ -1026,6 +1075,15 @@ services:
 | **页面标题未更新** | 检查 `document.title` | 刷新页面或重新登录 |
 | **图标不显示** | 检查图片 URL 是否可访问 | 确保图标图片路径正确且可访问 |
 
+### 10.9 AI 阅读助手问题
+
+| 问题 | 排查方法 | 解决方案 |
+|------|----------|----------|
+| **AI 服务未配置** | 检查系统设置中是否配置了 API Key | 在「系统设置 → AI 配置」中填写 API Key，或在 `.env` 文件中设置 `AI_API_KEY` |
+| **AI 请求超时** | 检查网络连接和 AI 服务状态 | 确认 `AI_BASE_URL` 配置正确，检查网络是否可访问 AI 服务 |
+| **AI 返回错误** | 查看浏览器控制台和后端日志 | 检查 API Key 是否有效，模型名称是否正确 |
+| **AI 配置不生效** | 确认已点击保存按钮 | 系统设置界面配置优先级高于 `.env` 文件，保存后立即生效 |
+
 ---
 
 ## 11. 版本更新
@@ -1054,7 +1112,8 @@ services:
 
 - **数据库迁移**：系统启动时自动执行，无需手动操作
 - **数据兼容性**：更新前建议先导出 JSON 备份
-- **配置变更**：检查是否有新的环境变量或配置项需要设置
+- **配置变更**：检查是否有新的环境变量或配置项需要设置（如 AI 配置可通过系统设置界面配置）
+- **前端代码结构变更**：v1.2.0 起前端 CSS 和 JS 已分离到 `static/` 目录，Docker 部署时需确保 `.dockerignore` 中不排除 `static/` 目录
 - **回滚方案**：保留旧版本的代码和数据库备份，以便需要时回滚
 
 ---

@@ -822,6 +822,10 @@ class SystemSettingsUpdate(BaseModel):
     welcome_title: Optional[str] = None
     welcome_subtitle: Optional[str] = None
     site_icon: Optional[str] = None
+    # AI 配置字段
+    ai_api_key: Optional[str] = None
+    ai_base_url: Optional[str] = None
+    ai_model_name: Optional[str] = None
 
 
 def get_system_setting(db: Session, key: str, default: str = "") -> str:
@@ -850,6 +854,10 @@ def get_settings(db: Session = Depends(get_db)):
         "welcome_title": get_system_setting(db, "welcome_title", "欢迎回来，阅读者 👋"),
         "welcome_subtitle": get_system_setting(db, "welcome_subtitle", "今天又读了什么好书？赶快记录下你的阅读进度或听书历程吧。每一次记录都是灵魂的脚印。"),
         "site_icon": get_system_setting(db, "site_icon", ""),
+        # AI 配置（API Key 脱敏返回，不暴露完整密钥）
+        "ai_api_key_set": bool(get_system_setting(db, "ai_api_key", "")),
+        "ai_base_url": get_system_setting(db, "ai_base_url", os.getenv("AI_BASE_URL", "https://api.deepseek.com")),
+        "ai_model_name": get_system_setting(db, "ai_model_name", os.getenv("AI_MODEL_NAME", "deepseek-chat")),
     }
 
 
@@ -864,6 +872,13 @@ def update_settings(item: SystemSettingsUpdate, db: Session = Depends(get_db)):
         set_system_setting(db, "welcome_subtitle", item.welcome_subtitle)
     if item.site_icon is not None:
         set_system_setting(db, "site_icon", item.site_icon)
+    # AI 配置
+    if item.ai_api_key is not None:
+        set_system_setting(db, "ai_api_key", item.ai_api_key)
+    if item.ai_base_url is not None:
+        set_system_setting(db, "ai_base_url", item.ai_base_url)
+    if item.ai_model_name is not None:
+        set_system_setting(db, "ai_model_name", item.ai_model_name)
     
     return {"message": "系统设置更新成功"}
 
@@ -1090,15 +1105,23 @@ def execute_add_new_book(title: str, author: str = "", total_chapters: str = "",
 @app.post("/api/chat")
 def chat_with_ai(item: ChatRequest):
     """AI 阅读助手聊天接口：支持 Function Calling，可调用后端工具执行操作"""
-    # 从环境变量读取 AI 配置
-    api_key = os.getenv("AI_API_KEY", "")
-    base_url = os.getenv("AI_BASE_URL", "https://api.deepseek.com")
-    model_name = os.getenv("AI_MODEL_NAME", "deepseek-chat")
+    # 优先从数据库读取 AI 配置，未设置时回退到环境变量
+    db = SessionLocal()
+    try:
+        db_api_key = get_system_setting(db, "ai_api_key", "")
+        db_base_url = get_system_setting(db, "ai_base_url", "")
+        db_model_name = get_system_setting(db, "ai_model_name", "")
+    finally:
+        db.close()
+
+    api_key = db_api_key if db_api_key else os.getenv("AI_API_KEY", "")
+    base_url = db_base_url if db_base_url else os.getenv("AI_BASE_URL", "https://api.deepseek.com")
+    model_name = db_model_name if db_model_name else os.getenv("AI_MODEL_NAME", "deepseek-chat")
 
     if not api_key or api_key == "your_api_key_here":
         raise HTTPException(
             status_code=500,
-            detail="AI 服务未配置：请在 .env 文件中设置 AI_API_KEY"
+            detail="AI 服务未配置：请在系统设置中配置 AI API Key，或在 .env 文件中设置 AI_API_KEY"
         )
 
     try:
