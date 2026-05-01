@@ -1,4 +1,4 @@
-const { createApp, ref, computed, onMounted, reactive } = Vue;
+const { createApp, ref, computed, onMounted, reactive, nextTick } = Vue;
         const { ElMessage, ElMessageBox } = ElementPlus;
 
         const API_BASE = '/api';
@@ -1084,6 +1084,63 @@ const { createApp, ref, computed, onMounted, reactive } = Vue;
                     e.target.style.display = 'none';
                 };
 
+                // ==========================================
+                // AI 阅读助手
+                // ==========================================
+                const showChatWindow = ref(false);
+                const chatMessages = ref([]);
+                const chatInput = ref('');
+                const isChatLoading = ref(false);
+                const chatMessagesRef = ref(null);
+
+                const toggleChatWindow = () => {
+                    showChatWindow.value = !showChatWindow.value;
+                };
+
+                // 滚动到底部
+                const scrollChatToBottom = () => {
+                    nextTick(() => {
+                        if (chatMessagesRef.value) {
+                            chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight;
+                        }
+                    });
+                };
+
+                // 发送消息
+                const sendChatMessage = async () => {
+                    const userMsg = chatInput.value.trim();
+                    if (!userMsg || isChatLoading.value) return;
+
+                    // 添加用户消息到列表
+                    chatMessages.value.push({ role: 'user', content: userMsg });
+                    chatInput.value = '';
+                    isChatLoading.value = true;
+                    scrollChatToBottom();
+
+                    try {
+                        // 构建历史记录（用于发送给后端）
+                        const history = chatMessages.value.slice(0, -1).map(msg => ({
+                            role: msg.role === 'ai' ? 'assistant' : msg.role,
+                            content: msg.content
+                        }));
+
+                        const response = await axios.post(`${API_BASE}/chat`, {
+                            message: userMsg,
+                            history: history
+                        });
+
+                        // 添加 AI 回复到列表
+                        chatMessages.value.push({ role: 'ai', content: response.data.reply });
+                    } catch (error) {
+                        console.error('AI 聊天请求失败:', error);
+                        const errorMsg = error.response?.data?.detail || '抱歉，AI 服务暂时不可用，请稍后再试。';
+                        chatMessages.value.push({ role: 'ai', content: `⚠️ ${errorMsg}` });
+                    } finally {
+                        isChatLoading.value = false;
+                        scrollChatToBottom();
+                    }
+                };
+
                 onMounted(() => {
                     // 先获取系统设置（包括自定义名称、欢迎语、图标）
                     fetchSettings().then(() => {
@@ -1136,7 +1193,10 @@ const { createApp, ref, computed, onMounted, reactive } = Vue;
                     // 修改密码
                     showChangePasswordDialog, isChangingPassword, changePasswordForm, handleChangePassword,
                     // 设置下拉菜单 & 夜间模式
-                    isDarkMode, handleSettingsCommand
+                    isDarkMode, handleSettingsCommand,
+                    // AI 阅读助手
+                    showChatWindow, chatMessages, chatInput, isChatLoading, chatMessagesRef,
+                    toggleChatWindow, sendChatMessage
                 };
             }
         });

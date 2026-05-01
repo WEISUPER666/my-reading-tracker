@@ -566,4 +566,283 @@
             margin-top: 12px;
             min-height: 20px;
         }
+
+        /* ==========================================
+         * AI 阅读助手 - 悬浮按钮 & 聊天窗口
+         * ========================================== */
+
+        /* 悬浮圆形按钮 */
+        .ai-chat-fab {
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 6px 20px rgba(79, 70, 229, 0.45);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 26px;
+            z-index: 9998;
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        .ai-chat-fab:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 28px rgba(79, 70, 229, 0.55);
+        }
+        .ai-chat-fab .fab-icon {
+            transition: transform 0.3s ease;
+        }
+        .ai-chat-fab.is-open .fab-icon {
+            transform: rotate(45deg);
+        }
+
+        /* 聊天窗口容器 */
+        .ai-chat-window {
+            position: fixed;
+            bottom: 104px;
+            right: 32px;
+            width: 380px;
+            height: 520px;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            z-index: 9999;
+            overflow: hidden;
+            animation: chatSlideUp 0.3s ease;
+        }
+        @keyframes chatSlideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        /* 聊天窗口头部 */
+        .ai-chat-header {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: #fff;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .ai-chat-header .header-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+        .ai-chat-header .header-info h4 {
+            margin: 0;
+            font-size: 15px;
+            font-weight: 600;
+        }
+        .ai-chat-header .header-info p {
+            margin: 0;
+            font-size: 11px;
+            opacity: 0.8;
+        }
+
+        /* 聊天记录展示区 */
+        .ai-chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #f9fafb;
+        }
+        .ai-chat-messages::-webkit-scrollbar {
+            width: 4px;
+        }
+        .ai-chat-messages::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+
+        /* 单条消息 */
+        .chat-message {
+            display: flex;
+            gap: 8px;
+            max-width: 85%;
+        }
+        .chat-message.user {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+        .chat-message .msg-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .chat-message.ai .msg-avatar {
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: #fff;
+        }
+        .chat-message.user .msg-avatar {
+            background: #e5e7eb;
+            color: #374151;
+        }
+        .chat-message .msg-bubble {
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.6;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .chat-message.ai .msg-bubble {
+            background: #fff;
+            color: #1f2937;
+            border: 1px solid #e5e7eb;
+            border-top-left-radius: 4px;
+        }
+        .chat-message.user .msg-bubble {
+            background: #4f46e5;
+            color: #fff;
+            border-top-right-radius: 4px;
+        }
+
+        /* 加载动画 */
+        .chat-loading {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 10px 14px;
+        }
+        .chat-loading .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6366f1;
+            animation: dotBounce 1.4s infinite ease-in-out both;
+        }
+        .chat-loading .dot:nth-child(1) { animation-delay: 0s; }
+        .chat-loading .dot:nth-child(2) { animation-delay: 0.16s; }
+        .chat-loading .dot:nth-child(3) { animation-delay: 0.32s; }
+        @keyframes dotBounce {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        /* 欢迎消息 */
+        .chat-welcome {
+            text-align: center;
+            padding: 20px 16px;
+            color: #9ca3af;
+            font-size: 13px;
+        }
+        .chat-welcome .welcome-icon {
+            font-size: 40px;
+            margin-bottom: 8px;
+        }
+
+        /* 底部输入区 */
+        .ai-chat-input {
+            padding: 12px 16px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+            background: #fff;
+            flex-shrink: 0;
+        }
+        .ai-chat-input .el-textarea__inner {
+            border-radius: 10px !important;
+            resize: none !important;
+            min-height: 38px !important;
+            max-height: 80px !important;
+            font-size: 13px;
+            padding: 8px 12px !important;
+        }
+        .ai-chat-input .send-btn {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: #4f46e5;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+            transition: background 0.2s;
+        }
+        .ai-chat-input .send-btn:hover {
+            background: #4338ca;
+        }
+        .ai-chat-input .send-btn:disabled {
+            background: #c7d2fe;
+            cursor: not-allowed;
+        }
+
+        /* 夜间模式适配 */
+        .dark-mode .ai-chat-window {
+            background: #1f2937;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+        }
+        .dark-mode .ai-chat-messages {
+            background: #111827;
+        }
+        .dark-mode .chat-message.ai .msg-bubble {
+            background: #374151;
+            color: #f3f4f6;
+            border-color: #4b5563;
+        }
+        .dark-mode .chat-message.user .msg-avatar {
+            background: #4b5563;
+            color: #d1d5db;
+        }
+        .dark-mode .ai-chat-input {
+            background: #1f2937;
+            border-color: #374151;
+        }
+        .dark-mode .ai-chat-input .el-textarea__inner {
+            background: #374151 !important;
+            color: #f3f4f6 !important;
+            border-color: #4b5563 !important;
+        }
+
+        /* 移动端适配 */
+        @media (max-width: 480px) {
+            .ai-chat-window {
+                bottom: 0;
+                right: 0;
+                width: 100%;
+                height: 100%;
+                border-radius: 0;
+            }
+            .ai-chat-fab {
+                bottom: 20px;
+                right: 20px;
+                width: 52px;
+                height: 52px;
+                font-size: 22px;
+            }
+        }
     </style>

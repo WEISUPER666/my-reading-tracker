@@ -712,6 +712,69 @@
             </template>
         </el-dialog>
 
+        <!-- AI 阅读助手 - 悬浮按钮 -->
+        <button class="ai-chat-fab" :class="{ 'is-open': showChatWindow }" @click="toggleChatWindow" title="AI 阅读助手">
+            <span class="fab-icon">🤖</span>
+        </button>
+
+        <!-- AI 阅读助手 - 聊天窗口 -->
+        <div class="ai-chat-window" v-show="showChatWindow">
+            <!-- 头部 -->
+            <div class="ai-chat-header">
+                <div class="header-avatar">🤖</div>
+                <div class="header-info">
+                    <h4>AI 阅读助手</h4>
+                    <p>你的专属阅读顾问</p>
+                </div>
+            </div>
+
+            <!-- 聊天记录区 -->
+            <div class="ai-chat-messages" ref="chatMessagesRef">
+                <!-- 欢迎消息 -->
+                <div v-if="chatMessages.length === 0" class="chat-welcome">
+                    <div class="welcome-icon">📚</div>
+                    <p>你好！我是你的 AI 阅读助手</p>
+                    <p>可以问我关于书籍推荐、阅读计划、读书笔记等问题</p>
+                </div>
+
+                <!-- 聊天消息列表 -->
+                <div v-for="(msg, index) in chatMessages" :key="index"
+                     class="chat-message" :class="msg.role">
+                    <div class="msg-avatar">
+                        {{ msg.role === 'ai' ? '🤖' : '👤' }}
+                    </div>
+                    <div class="msg-bubble">{{ msg.content }}</div>
+                </div>
+
+                <!-- AI 正在输入动画 -->
+                <div v-if="isChatLoading" class="chat-message ai">
+                    <div class="msg-avatar">🤖</div>
+                    <div class="msg-bubble">
+                        <div class="chat-loading">
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                            <div class="dot"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 底部输入区 -->
+            <div class="ai-chat-input">
+                <el-input
+                    v-model="chatInput"
+                    type="textarea"
+                    :autosize="{ minRows: 1, maxRows: 3 }"
+                    placeholder="输入你的问题..."
+                    @keydown.enter.exact.prevent="sendChatMessage"
+                    :disabled="isChatLoading">
+                </el-input>
+                <button class="send-btn" @click="sendChatMessage" :disabled="isChatLoading || !chatInput.trim()">
+                    <el-icon><Promotion /></el-icon>
+                </button>
+            </div>
+        </div>
+
     </div>
 
     <!-- 引入自定义脚本 -->

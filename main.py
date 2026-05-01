@@ -12,6 +12,11 @@ import os
 import uuid
 import json
 import hashlib
+from dotenv import load_dotenv
+from openai import OpenAI
+
+# 加载 .env 环境变量（使用脚本所在目录的绝对路径，确保 uvicorn reload 时也能正确加载）
+load_dotenv(os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"), override=True)
 
 # ==========================================
 # 1. 数据库基础配置 (SQLite)
@@ -900,3 +905,283 @@ def change_password(item: ChangePasswordRequest, db: Session = Depends(get_db)):
     db.commit()
     
     return {"message": "密码修改成功"}
+
+
+# ==========================================
+# 9. AI 阅读助手 API（支持 Function Calling）
+# ==========================================
+class ChatRequest(BaseModel):
+    """AI 聊天请求格式"""
+    message: str
+    history: Optional[List[dict]] = []  # 聊天历史记录 [{role, content}]
+
+
+# AI 系统提示词：定义助手的角色和行为
+AI_SYSTEM_PROMPT = """你是一个专业的"AI 阅读助手"，专门帮助用户管理个人阅读档案。
+你的职责包括：
+1. 推荐书籍：根据用户的兴趣、阅读历史推荐合适的书籍
+2. 阅读建议：帮助用户制定阅读计划、提供阅读方法建议
+3. 书籍讨论：与用户讨论已读书籍的内容、感悟
+4. 阅读统计分析：帮助用户分析阅读习惯和偏好
+5. 解答疑问：回答与阅读、书籍相关的问题
+6. 更新进度：当用户要求更新某本书的阅读进度时，调用 update_book_progress 工具
+7. 添加新书：当用户提到要添加新书、录入新书、开始读一本新书时，调用 add_new_book 工具直接为用户创建新书档案
+
+请用友好、专业的语气回复，回复内容简洁明了，适合在聊天窗口中阅读。
+如果用户询问与阅读无关的问题，礼貌地引导回阅读相关话题。"""
+
+
+# 定义 AI 可调用的工具列表（Function Calling Tools）
+AI_TOOLS = [
+    {
+        "type": "function",
+        "function": {
+            "name": "update_book_progress",
+            "description": "更新指定书籍的阅读进度。当用户提到要更新某本书的进度、记录读到第几章、标记为已读完等操作时调用此工具。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "book_title": {
+                        "type": "string",
+                        "description": "书籍的名称（支持模糊匹配，例如用户说'三体'可以匹配到'三体全集'）"
+                    },
+                    "new_progress": {
+                        "type": "string",
+                        "description": "新的阅读进度文本，例如'第50章'、'50%'、'已读完'、'第3章第12节'等"
+                    }
+                },
+                "required": ["book_title", "new_progress"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "add_new_book",
+            "description": "为用户添加一本新书到阅读档案中。当用户提到要添加新书、录入新书、开始读一本新书等操作时调用此工具。如果书名已存在则不会重复添加。",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "description": "书籍的名称，例如'三体'、'百年孤独'等"
+                    },
+                    "author": {
+                        "type": "string",
+                        "description": "书籍的作者，例如'刘慈欣'、'马尔克斯'等（可选）"
+                    },
+                    "total_chapters": {
+                        "type": "string",
+                        "description": "书籍的总回数或章节数，例如'100章'、'30回'等（可选）"
+                    },
+                    "current_progress": {
+                        "type": "string",
+                        "description": "用户当前的阅读进度，例如'第1章'、'刚开始'等（可选）"
+                    }
+                },
+                "required": ["title"]
+            }
+        }
+    }
+]
+
+
+def execute_update_book_progress(book_title: str, new_progress: str) -> str:
+    """
+    执行更新书籍进度的内部函数。
+    1. 模糊匹配书名
+    2. 找到该书最新的阅读记录
+    3. 更新其进度字段
+    返回执行结果的文本描述。
+    """
+    db = SessionLocal()
+    try:
+        # 模糊匹配书名（使用 LIKE 进行模糊搜索）
+        matched_book = db.query(Book).filter(Book.title.like(f"%{book_title}%")).first()
+
+        if not matched_book:
+            return f"未找到包含「{book_title}」的书籍，请检查书名是否正确。"
+
+        # 找到该书最新的阅读记录（按开始日期倒序）
+        latest_log = (
+            db.query(ReadingLog)
+            .filter(ReadingLog.book_id == matched_book.id)
+            .order_by(ReadingLog.start_date.desc())
+            .first()
+        )
+
+        if not latest_log:
+            return f"找到了书籍「{matched_book.title}」，但该书没有阅读记录，请先在系统中添加阅读记录。"
+
+        # 更新进度
+        latest_log.progress = new_progress
+        db.commit()
+
+        return f"成功更新！书籍「{matched_book.title}」的最新阅读记录进度已更新为「{new_progress}」。"
+
+    except Exception as e:
+        db.rollback()
+        return f"更新进度时发生错误：{str(e)}"
+    finally:
+        db.close()
+
+
+def execute_add_new_book(title: str, author: str = "", total_chapters: str = "", current_progress: str = "") -> str:
+    """
+    执行添加新书的内部函数。
+    1. 检查数据库中是否已有同名书籍
+    2. 如果已存在，提示用户并返回
+    3. 如果不存在，创建新书记录
+    返回执行结果的文本描述。
+    """
+    db = SessionLocal()
+    try:
+        # 检查是否已有同名书籍（精确匹配）
+        existing_book = db.query(Book).filter(Book.title == title).first()
+        if existing_book:
+            return f"书架中已存在书籍「{title}」（ID: {existing_book.id}），无需重复添加。如需更新进度，请使用更新进度功能。"
+
+        # 构建备注信息（将 author、total_chapters 等可选信息写入备注）
+        notes_parts = []
+        if author:
+            notes_parts.append(f"作者：{author}")
+        if total_chapters:
+            notes_parts.append(f"总章节数：{total_chapters}")
+        notes = "；".join(notes_parts) if notes_parts else None
+
+        # 创建新书记录
+        db_book = Book(
+            title=title,
+            category="未分类",
+            rating=0
+        )
+        db.add(db_book)
+        db.commit()
+        db.refresh(db_book)
+
+        # 创建初始阅读记录
+        db_log = ReadingLog(
+            book_id=db_book.id,
+            platform="其他",
+            status="阅读中",
+            start_date=datetime.now(),
+            progress=current_progress if current_progress else None,
+            notes=notes
+        )
+        db.add(db_log)
+        db.commit()
+
+        result_msg = f"成功添加新书「{title}」（ID: {db_book.id}）。"
+        if author:
+            result_msg += f" 作者：{author}。"
+        if total_chapters:
+            result_msg += f" 共{total_chapters}。"
+        if current_progress:
+            result_msg += f" 当前进度：{current_progress}。"
+        return result_msg
+
+    except Exception as e:
+        db.rollback()
+        return f"添加新书时发生错误：{str(e)}"
+    finally:
+        db.close()
+
+
+@app.post("/api/chat")
+def chat_with_ai(item: ChatRequest):
+    """AI 阅读助手聊天接口：支持 Function Calling，可调用后端工具执行操作"""
+    # 从环境变量读取 AI 配置
+    api_key = os.getenv("AI_API_KEY", "")
+    base_url = os.getenv("AI_BASE_URL", "https://api.deepseek.com")
+    model_name = os.getenv("AI_MODEL_NAME", "deepseek-chat")
+
+    if not api_key or api_key == "your_api_key_here":
+        raise HTTPException(
+            status_code=500,
+            detail="AI 服务未配置：请在 .env 文件中设置 AI_API_KEY"
+        )
+
+    try:
+        # 初始化 OpenAI 客户端（兼容 DeepSeek 等 OpenAI 格式的服务）
+        client = OpenAI(api_key=api_key, base_url=base_url)
+
+        # 构建消息列表：系统提示 + 历史记录 + 当前用户消息
+        messages = [{"role": "system", "content": AI_SYSTEM_PROMPT}]
+
+        # 添加历史对话记录（最多保留最近 20 条消息）
+        if item.history:
+            messages.extend(item.history[-20:])
+
+        # 添加当前用户消息
+        messages.append({"role": "user", "content": item.message})
+
+        # 第一次调用大模型 API（携带工具定义）
+        response = client.chat.completions.create(
+            model=model_name,
+            messages=messages,
+            tools=AI_TOOLS,
+            tool_choice="auto",  # 让模型自动决定是否需要调用工具
+            temperature=0.7,
+            max_tokens=1024,
+        )
+
+        assistant_message = response.choices[0].message
+
+        # 检查 AI 是否请求调用工具
+        if assistant_message.tool_calls:
+            # 将 AI 的回复（包含 tool_calls）添加到消息列表
+            messages.append(assistant_message)
+
+            # 逐个处理工具调用
+            for tool_call in assistant_message.tool_calls:
+                function_name = tool_call.function.name
+                function_args = json.loads(tool_call.function.arguments)
+
+                print(f"[AI Agent] 调用工具: {function_name}, 参数: {function_args}")
+
+                # 根据函数名分发执行
+                if function_name == "update_book_progress":
+                    result = execute_update_book_progress(
+                        book_title=function_args.get("book_title", ""),
+                        new_progress=function_args.get("new_progress", "")
+                    )
+                elif function_name == "add_new_book":
+                    result = execute_add_new_book(
+                        title=function_args.get("title", ""),
+                        author=function_args.get("author", ""),
+                        total_chapters=function_args.get("total_chapters", ""),
+                        current_progress=function_args.get("current_progress", "")
+                    )
+                else:
+                    result = f"未知的工具: {function_name}"
+
+                print(f"[AI Agent] 工具执行结果: {result}")
+
+                # 将工具执行结果添加到消息列表
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "content": result
+                })
+
+            # 第二次调用大模型 API，让 AI 根据工具执行结果生成最终回复
+            second_response = client.chat.completions.create(
+                model=model_name,
+                messages=messages,
+                temperature=0.7,
+                max_tokens=1024,
+            )
+
+            ai_reply = second_response.choices[0].message.content
+        else:
+            # AI 没有请求调用工具，直接返回文本回复
+            ai_reply = assistant_message.content
+
+        return {"reply": ai_reply}
+
+    except Exception as e:
+        print(f"[AI 聊天] 调用失败: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"AI 服务调用失败：{str(e)}"
+        )
