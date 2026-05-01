@@ -839,7 +839,7 @@ const { createApp, ref, computed, onMounted, reactive, nextTick } = Vue;
                             cover: editForm.cover,
                             category: editForm.category,
                             rating: editForm.rating,
-                            read_url: editForm.read_url || null  // 需求一：阅读链接
+                            read_url: editForm.read_url  // 需求一：阅读链接（空字符串表示清空）
                         });
                         ElMessage.success('书籍信息更新成功！');
                         showEditDialog.value = false;
@@ -1007,6 +1007,7 @@ const { createApp, ref, computed, onMounted, reactive, nextTick } = Vue;
                         // 刷新数据
                         fetchBooks();
                         fetchCategories();
+                        fetchPlatforms();
                     } catch (error) {
                         if (error.response?.data?.detail) {
                             ElMessage.error(error.response.data.detail);
@@ -1157,6 +1158,11 @@ const { createApp, ref, computed, onMounted, reactive, nextTick } = Vue;
 
                         // 添加 AI 回复到列表
                         chatMessages.value.push({ role: 'ai', content: response.data.reply });
+
+                        // 如果 AI 执行了工具调用（添加新书/更新进度），自动刷新书架数据
+                        if (response.data.data_updated) {
+                            fetchBooks();
+                        }
                     } catch (error) {
                         console.error('AI 聊天请求失败:', error);
                         const errorMsg = error.response?.data?.detail || '抱歉，AI 服务暂时不可用，请稍后再试。';

@@ -53,9 +53,9 @@
 |:---:|:---:|
 | ![🌙 暗黑模式界面](assets/C.png) | ![📝 录入数据界面](assets/B.png) |
 
-| 分类图标管理 |
-|:---:|
-| ![🏷️ 分类图标管理](assets/D.png) |
+| 分类图标管理 | AI 阅读助手 |
+|:---:|:---:|
+| ![🏷️ 分类图标管理](assets/D.png) | ![🤖 AI 阅读助手](assets/E.png) |
 
 ---
 
@@ -167,6 +167,8 @@
 | [Uvicorn](https://www.uvicorn.org/) | ASGI 服务器 | 0.24.0 |
 | [python-multipart](https://github.com/andrew-d/python-multipart) | 文件上传支持 | 0.0.6 |
 | [python-dotenv](https://github.com/theskumar/python-dotenv) | 环境变量加载 | 1.0.0 |
+| [OpenAI](https://github.com/openai/openai-python) | AI 对话与 Function Calling | 1.0.0+ |
+| [httpx](https://www.python-httpx.org/) | 异步 HTTP 客户端 | 0.27.0+ |
 
 ### 前端
 
