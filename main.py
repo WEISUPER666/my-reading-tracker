@@ -277,7 +277,7 @@ async def auth_middleware(request: Request, call_next):
     return response
 
 # 挂载静态文件目录，让 FastAPI 能够提供静态文件
-app.mount("/static", StaticFiles(directory="."), name="static")
+app.mount("/static", StaticFiles(directory="static"), name="static")
 app.mount("/covers", StaticFiles(directory="data/covers"), name="covers")
 
 @app.get("/")
