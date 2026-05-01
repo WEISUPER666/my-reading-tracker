@@ -2,7 +2,7 @@
 
 > 一个功能完善的个人阅读/听书记录管理系统，支持书籍录入、阅读追踪、数据统计与可视化。
 
-![版本](https://img.shields.io/badge/版本-1.0.0-blue)
+![版本](https://img.shields.io/badge/版本-1.3.0-blue)
 ![Python](https://img.shields.io/badge/Python-3.7%2B-green)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.104-blue)
 ![Vue 3](https://img.shields.io/badge/Vue_3-3.x-brightgreen)
@@ -57,6 +57,10 @@
 |:---:|:---:|
 | ![🏷️ 分类图标管理](assets/D.png) | ![🤖 AI 阅读助手](assets/E.png) |
 
+| AI 服务商选择 | 阅读统计看板 |
+|:---:|:---:|
+| ![🔧 AI 服务商选择](assets/E1.png) | ![📊 阅读统计看板](assets/F.png) |
+
 ---
 
 ## ✨ 功能一览
@@ -67,8 +71,10 @@
 |------|------|
 | **AI 智能对话** | 内置 AI 阅读助手，支持自然语言对话，帮你管理阅读记录 |
 | **Function Calling** | AI 助手可调用后端工具执行操作（如录入新书、查询书籍等） |
-| **可视化配置** | 在系统设置中通过界面配置 AI API Key、Base URL 和模型名称，无需手动编辑配置文件 |
+| **多服务商支持** | 支持 DeepSeek、OpenAI、Google Gemini、Ollama（本地）及自定义 OpenAI 兼容服务，一键切换 |
+| **可视化配置** | 在系统设置中通过界面选择 AI 服务商，自动填充 Base URL 和模型列表，无需手动编辑配置文件 |
 | **灵活的配置优先级** | 优先从数据库读取 AI 配置（通过界面设置），未配置时自动回退到 `.env` 环境变量 |
+| **本地模型支持** | 支持 Ollama 本地部署，无需 API Key，隐私安全 |
 
 ### 📚 书籍管理
 
@@ -123,6 +129,8 @@
 |------|------|
 | **数据统计** | 展示总存书数量、正在阅读/听数量和已完结数量 |
 | **分类占比饼图** | 使用 ECharts 渲染藏书分类占比环形图，直观展示阅读偏好 |
+| **阅读统计看板** | 独立的统计看板页面，包含近 7 天阅读趋势柱状图、近 12 个月阅读趋势折线图、阅读状态分布环形图、平台使用分布饼图 |
+| **本周阅读摘要** | 统计看板顶部展示本周阅读记录数和涉及书籍数，一目了然 |
 | **搜索过滤** | 支持按书名模糊搜索，快速定位书籍 |
 
 ### 🎨 用户体验
@@ -400,6 +408,12 @@ my-reading-tracker/
 | `POST` | `/api/settings/` | 更新系统设置（含 AI API Key、Base URL、模型名称） |
 | `POST` | `/api/settings/change-password` | 修改管理员访问密码 |
 
+### 统计接口
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/stats/` | 获取阅读统计数据（周趋势、月趋势、状态分布、平台分布、本周摘要） |
+
 ### AI 聊天接口
 
 | 方法 | 路径 | 说明 |
@@ -452,12 +466,13 @@ my-reading-tracker/
 ALLOWED_ORIGINS=http://localhost:8000,http://127.0.0.1:8000
 
 # AI 阅读助手配置（可选，也可通过系统设置界面配置）
-AI_API_KEY=your_api_key_here
+AI_PROVIDER=deepseek          # 服务商：deepseek/openai/gemini/ollama/custom
+AI_API_KEY=your_api_key_here  # API Key（Ollama 不需要）
 AI_BASE_URL=https://api.deepseek.com
 AI_MODEL_NAME=deepseek-chat
 ```
 
-> **提示**：AI 配置支持两种方式：① 通过系统设置界面配置（优先级更高，存储在数据库中）；② 通过 `.env` 环境变量配置（作为回退）。两者只需配置其一即可。
+> **提示**：AI 配置支持两种方式：① 通过系统设置界面配置（优先级更高，存储在数据库中）；② 通过 `.env` 环境变量配置（作为回退）。两者只需配置其一即可。支持的服务商包括 DeepSeek、OpenAI、Google Gemini、Ollama（本地）及自定义 OpenAI 兼容服务。
 
 系统启动时会自动通过 `python-dotenv` 加载 `.env` 文件中的配置。
 
@@ -524,6 +539,15 @@ AI_MODEL_NAME=deepseek-chat
 ---
 
 ## 📝 更新日志
+
+### v1.3.0 (2026-05)
+
+- 📊 **阅读统计看板**：新增独立的「统计看板」页面，包含近 7 天阅读趋势柱状图、近 12 个月阅读趋势折线图、阅读状态分布环形图、平台使用分布饼图，支持深色/浅色主题自适应
+- 📈 **本周阅读摘要**：统计看板顶部展示本周阅读记录数和涉及书籍数，快速了解近期阅读活跃度
+- 🔧 **AI 服务商选择**：系统设置「AI 配置」标签页新增服务商下拉选择，支持 DeepSeek、OpenAI、Google Gemini、Ollama（本地）及自定义 OpenAI 兼容服务
+- 🎯 **AI 服务商预设配置**：选择服务商后自动填充 Base URL 和推荐模型列表，降低配置门槛
+- 🦙 **Ollama 本地模型支持**：支持 Ollama 本地部署，无需 API Key，隐私安全
+- 🔌 **统计 API 接口**：新增 `GET /api/stats/` 接口，返回周趋势、月趋势、状态分布、平台分布等统计数据
 
 ### v1.2.0 (2026-05)
 

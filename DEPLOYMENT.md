@@ -195,7 +195,8 @@ volumes:
 | 环境变量 | 说明 | 默认值 | 示例 |
 |----------|------|--------|------|
 | `ALLOWED_ORIGINS` | 允许跨域访问的域名列表（逗号分隔） | `http://localhost:8000,http://127.0.0.1:8000` | `https://books.example.com,https://admin.example.com` |
-| `AI_API_KEY` | AI 阅读助手的 API Key（可选，也可通过系统设置界面配置） | 空 | `sk-xxxxxxxxxxxxxxxx` |
+| `AI_PROVIDER` | AI 服务商标识（可选，也可通过系统设置界面配置） | `deepseek` | `openai`、`gemini`、`ollama`、`custom` |
+| `AI_API_KEY` | AI 阅读助手的 API Key（DeepSeek/OpenAI/Gemini 必填，Ollama 不需要） | 空 | `sk-xxxxxxxxxxxxxxxx` |
 | `AI_BASE_URL` | AI 服务的 API 基础地址 | `https://api.deepseek.com` | `https://api.openai.com/v1` |
 | `AI_MODEL_NAME` | AI 模型名称 | `deepseek-chat` | `gpt-4o` |
 | `TZ` | 容器时区（仅 Docker 部署） | `Asia/Shanghai` | `America/New_York` |
@@ -220,6 +221,7 @@ export ALLOWED_ORIGINS=https://books.example.com
 ALLOWED_ORIGINS=https://books.example.com
 
 # AI 阅读助手配置（可选，也可通过系统设置界面配置）
+AI_PROVIDER=deepseek
 AI_API_KEY=sk-xxxxxxxxxxxxxxxx
 AI_BASE_URL=https://api.deepseek.com
 AI_MODEL_NAME=deepseek-chat
@@ -293,16 +295,22 @@ environment:
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | `GET` | `/api/settings/` | 获取所有系统设置（站点名称、欢迎语、图标、AI 配置状态等） |
-| `POST` | `/api/settings/` | 更新系统设置（含 AI API Key、Base URL、模型名称） |
+| `POST` | `/api/settings/` | 更新系统设置（含 AI 服务商、API Key、Base URL、模型名称） |
 | `POST` | `/api/settings/change-password` | 修改管理员访问密码 |
 
-### 4.8 AI 聊天接口
+### 4.8 统计接口
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `GET` | `/api/stats/` | 获取阅读统计数据（周趋势、月趋势、状态分布、平台分布、本周摘要） |
+
+### 4.9 AI 聊天接口
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | `POST` | `/api/chat` | AI 阅读助手聊天接口，支持 Function Calling |
 
-### 4.9 接口详细说明
+### 4.10 接口详细说明
 
 #### `POST /api/books/` - 录入新书
 
@@ -534,13 +542,14 @@ environment:
   "welcome_title": "欢迎回来，阅读者 👋",
   "welcome_subtitle": "今天又读了什么好书？赶快记录下你的阅读进度或听书历程吧。每一次记录都是灵魂的脚印。",
   "site_icon": "",
+  "ai_provider": "deepseek",
   "ai_api_key_set": true,
   "ai_base_url": "https://api.deepseek.com",
   "ai_model_name": "deepseek-chat"
 }
 ```
 
-> **注意**：`ai_api_key_set` 为布尔值，仅表示是否已配置 API Key，不会暴露完整密钥。
+> **注意**：`ai_api_key_set` 为布尔值，仅表示是否已配置 API Key，不会暴露完整密钥。`ai_provider` 为当前选择的 AI 服务商标识（`deepseek`、`openai`、`gemini`、`ollama`、`custom`）。
 
 #### `POST /api/settings/` - 更新系统设置
 
@@ -551,6 +560,7 @@ environment:
   "welcome_title": "欢迎回来（可选）",
   "welcome_subtitle": "新的欢迎语（可选）",
   "site_icon": "/covers/icon.jpg（可选）",
+  "ai_provider": "deepseek（可选，支持 deepseek/openai/gemini/ollama/custom）",
   "ai_api_key": "sk-xxxxxxxx（可选，留空表示不修改）",
   "ai_base_url": "https://api.deepseek.com（可选）",
   "ai_model_name": "deepseek-chat（可选）"
@@ -563,6 +573,38 @@ environment:
   "message": "系统设置更新成功"
 }
 ```
+
+#### `GET /api/stats/` - 获取阅读统计数据
+
+**响应**：
+```json
+{
+  "week": {
+    "labels": ["04/25", "04/26", "04/27", "04/28", "04/29", "04/30", "05/01"],
+    "data": [2, 0, 1, 3, 1, 0, 2]
+  },
+  "month": {
+    "labels": ["2025-06", "2025-07", "2025-08", "2025-09", "2025-10", "2025-11", "2025-12", "2026-01", "2026-02", "2026-03", "2026-04", "2026-05"],
+    "data": [5, 8, 3, 6, 4, 7, 2, 9, 5, 6, 8, 3]
+  },
+  "status": [
+    {"name": "阅读中", "value": 5},
+    {"name": "已读完", "value": 12},
+    {"name": "已弃坑", "value": 2}
+  ],
+  "platform": [
+    {"name": "微信读书", "value": 10},
+    {"name": "喜马拉雅", "value": 4},
+    {"name": "本地文件", "value": 3}
+  ],
+  "summary": {
+    "this_week_logs": 9,
+    "this_week_books": 4
+  }
+}
+```
+
+> **说明**：`week` 为近 7 天每天新增的阅读记录数；`month` 为近 12 个月每月新增的阅读记录数；`status` 为所有阅读记录的状态分布；`platform` 为所有阅读记录的平台分布；`summary` 为本周阅读摘要。
 
 #### `POST /api/chat` - AI 阅读助手聊天
 
@@ -604,7 +646,7 @@ environment:
 }
 ```
 
-### 4.10 认证说明
+### 4.11 认证说明
 
 所有 `/api/` 开头的请求需要在请求头中携带 `X-Auth-Token` 字段，值为后端配置的访问密码。未携带或密码错误将返回 401 状态码：
 
@@ -1079,10 +1121,12 @@ services:
 
 | 问题 | 排查方法 | 解决方案 |
 |------|----------|----------|
-| **AI 服务未配置** | 检查系统设置中是否配置了 API Key | 在「系统设置 → AI 配置」中填写 API Key，或在 `.env` 文件中设置 `AI_API_KEY` |
+| **AI 服务未配置** | 检查系统设置中是否选择了正确的 AI 服务商并配置了 API Key | 在「系统设置 → AI 配置」中选择服务商并填写 API Key，或在 `.env` 文件中设置 `AI_API_KEY` |
 | **AI 请求超时** | 检查网络连接和 AI 服务状态 | 确认 `AI_BASE_URL` 配置正确，检查网络是否可访问 AI 服务 |
 | **AI 返回错误** | 查看浏览器控制台和后端日志 | 检查 API Key 是否有效，模型名称是否正确 |
 | **AI 配置不生效** | 确认已点击保存按钮 | 系统设置界面配置优先级高于 `.env` 文件，保存后立即生效 |
+| **Ollama 连接失败** | 确认 Ollama 服务已启动 | 运行 `ollama serve` 启动服务，确认 Base URL 为 `http://localhost:11434/v1` |
+| **切换服务商后报错** | 检查新服务商的 API Key 是否已配置 | 切换服务商后需重新填写对应的 API Key（Ollama 除外） |
 
 ---
 

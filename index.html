@@ -58,6 +58,15 @@
                 </div>
                 {{ siteSettings.site_name }}
             </div>
+            <!-- 页面切换标签 -->
+            <div class="nav-tabs">
+                <div :class="['nav-tab', { active: currentPage === 'home' }]" @click="currentPage = 'home'">
+                    <el-icon><HomeFilled /></el-icon> 首页
+                </div>
+                <div :class="['nav-tab', { active: currentPage === 'stats' }]" @click="currentPage = 'stats'">
+                    <el-icon><DataAnalysis /></el-icon> 统计看板
+                </div>
+            </div>
             <div style="display: flex; gap: 10px; align-items: center;">
                 <el-button round @click="fetchBooks">
                     <el-icon><Refresh /></el-icon>&nbsp;刷新数据
@@ -111,53 +120,55 @@
         </nav>
 
         <main class="main-container">
-            <!-- 仪表盘区域 -->
-            <div class="dashboard-grid">
-                <div class="action-card">
-                    <h2>{{ siteSettings.welcome_title }}</h2>
-                    <p>{{ siteSettings.welcome_subtitle }}</p>
-                    <div>
-                        <el-button type="primary" size="large" round icon="Plus" @click="showAddDialog = true" style="box-shadow: 0 4px 12px rgba(79,70,229,0.3);">
-                            录入新档案
-                        </el-button>
+            <!-- ========== 首页：仪表盘 + 我的书架 ========== -->
+            <div v-show="currentPage === 'home'">
+                <!-- 仪表盘区域 -->
+                <div class="dashboard-grid">
+                    <div class="action-card">
+                        <h2>{{ siteSettings.welcome_title }}</h2>
+                        <p>{{ siteSettings.welcome_subtitle }}</p>
+                        <div>
+                            <el-button type="primary" size="large" round icon="Plus" @click="showAddDialog = true" style="box-shadow: 0 4px 12px rgba(79,70,229,0.3);">
+                                录入新档案
+                            </el-button>
+                        </div>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon icon-blue"><el-icon><Collection /></el-icon></div>
+                            <div class="stat-info">
+                                <h3>总计藏书</h3>
+                                <div class="value">{{ totalBooks }} <span style="font-size:14px; font-weight:normal; color:#9ca3af;">本</span></div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon icon-orange"><el-icon><Headset /></el-icon></div>
+                            <div class="stat-info">
+                                <h3>正在阅读/听</h3>
+                                <div class="value">{{ readingBooks }} <span style="font-size:14px; font-weight:normal; color:#9ca3af;">本</span></div>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon icon-green"><el-icon><Check /></el-icon></div>
+                            <div class="stat-info">
+                                <h3>已完结</h3>
+                                <div class="value">{{ completedBooks }} <span style="font-size:14px; font-weight:normal; color:#9ca3af;">本</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 需求三：数据可视化看板 - 藏书分类占比饼图 -->
+                    <div class="chart-card">
+                        <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+                            <el-icon style="font-size: 16px; color: #4f46e5;"><PieChart /></el-icon>
+                            <h3 style="margin: 0; font-size: 13px; font-weight: 700; color: #1f2937;">藏书分类占比</h3>
+                        </div>
+                        <div id="categoryChart" style="width: 100%; height: 110px;"></div>
                     </div>
                 </div>
 
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-icon icon-blue"><el-icon><Collection /></el-icon></div>
-                        <div class="stat-info">
-                            <h3>总计藏书</h3>
-                            <div class="value">{{ totalBooks }} <span style="font-size:14px; font-weight:normal; color:#9ca3af;">本</span></div>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon icon-orange"><el-icon><Headset /></el-icon></div>
-                        <div class="stat-info">
-                            <h3>正在阅读/听</h3>
-                            <div class="value">{{ readingBooks }} <span style="font-size:14px; font-weight:normal; color:#9ca3af;">本</span></div>
-                        </div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-icon icon-green"><el-icon><Check /></el-icon></div>
-                        <div class="stat-info">
-                            <h3>已完结</h3>
-                            <div class="value">{{ completedBooks }} <span style="font-size:14px; font-weight:normal; color:#9ca3af;">本</span></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 需求三：数据可视化看板 - 藏书分类占比饼图 -->
-                <div class="chart-card">
-                    <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
-                        <el-icon style="font-size: 16px; color: #4f46e5;"><PieChart /></el-icon>
-                        <h3 style="margin: 0; font-size: 13px; font-weight: 700; color: #1f2937;">藏书分类占比</h3>
-                    </div>
-                    <div id="categoryChart" style="width: 100%; height: 110px;"></div>
-                </div>
-            </div>
-
-            <!-- 我的书架区域 -->
+                <!-- 我的书架区域 -->
             <div class="section-header">
                 <h2 class="section-title"><el-icon><Management /></el-icon> 我的书架</h2>
                 <div class="search-filter-area">
@@ -254,6 +265,58 @@
                     </div>
                 </el-col>
             </el-row>
+            </div>
+
+            <!-- ========== 统计看板页面 ========== -->
+            <div v-show="currentPage === 'stats'">
+                <!-- 阅读统计看板 -->
+                <div class="stats-section">
+                    <div class="stats-section-header">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <el-icon style="font-size: 20px; color: #4f46e5;"><DataAnalysis /></el-icon>
+                            <h2 style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-main);">📊 阅读统计看板</h2>
+                        </div>
+                        <div class="stats-summary-badges">
+                            <span class="summary-badge badge-primary">
+                                <el-icon><Calendar /></el-icon> 本周记录 <strong>{{ statsSummary.this_week_logs }}</strong> 条
+                            </span>
+                            <span class="summary-badge badge-success">
+                                <el-icon><Reading /></el-icon> 本周阅读 <strong>{{ statsSummary.this_week_books }}</strong> 本书
+                            </span>
+                        </div>
+                    </div>
+                    <div class="stats-charts-grid">
+                        <!-- 周趋势柱状图 -->
+                        <div class="stats-chart-card">
+                            <div class="stats-chart-title">
+                                <span>📈</span> 近 7 天阅读趋势
+                            </div>
+                            <div id="weekTrendChart" style="width: 100%; height: 200px;"></div>
+                        </div>
+                        <!-- 月趋势折线图 -->
+                        <div class="stats-chart-card">
+                            <div class="stats-chart-title">
+                                <span>📉</span> 近 12 个月阅读趋势
+                            </div>
+                            <div id="monthTrendChart" style="width: 100%; height: 200px;"></div>
+                        </div>
+                        <!-- 阅读状态分布 -->
+                        <div class="stats-chart-card">
+                            <div class="stats-chart-title">
+                                <span>🎯</span> 阅读状态分布
+                            </div>
+                            <div id="statusChart" style="width: 100%; height: 200px;"></div>
+                        </div>
+                        <!-- 平台使用分布 -->
+                        <div class="stats-chart-card">
+                            <div class="stats-chart-title">
+                                <span>📱</span> 平台使用分布
+                            </div>
+                            <div id="platformChart" style="width: 100%; height: 200px;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
 
         <!-- 录入书籍的弹窗 -->
@@ -671,36 +734,90 @@
                 <!-- AI 配置 Tab -->
                 <el-tab-pane label="🤖 AI 配置" name="ai">
                     <el-form :model="settingsForm" label-width="100px" label-position="left" style="padding-top: 8px;">
-                        <el-form-item label="API Key" required>
+                        <!-- AI 服务商选择 -->
+                        <el-form-item label="AI 服务商">
+                            <el-select
+                                v-model="settingsForm.ai_provider"
+                                placeholder="选择 AI 服务商"
+                                style="width: 100%;"
+                                @change="onAiProviderChange">
+                                <el-option
+                                    v-for="(preset, key) in aiProviderPresets"
+                                    :key="key"
+                                    :label="preset.icon + ' ' + preset.name"
+                                    :value="key">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 18px;">{{ preset.icon }}</span>
+                                        <div>
+                                            <div style="font-weight: 600;">{{ preset.name }}</div>
+                                            <div style="font-size: 11px; color: #9ca3af;">{{ preset.description }}</div>
+                                        </div>
+                                    </div>
+                                </el-option>
+                            </el-select>
+                            <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">
+                                {{ currentProviderPreset.description }}
+                            </div>
+                        </el-form-item>
+
+                        <!-- API Key（Ollama 不需要） -->
+                        <el-form-item v-if="currentProviderPreset.needApiKey" label="API Key" :required="!settingsForm.ai_api_key_set">
                             <el-input
                                 v-model="settingsForm.ai_api_key"
-                                placeholder="输入你的 API Key"
+                                :placeholder="currentProviderPreset.apiKeyPlaceholder"
                                 type="password"
                                 show-password>
                             </el-input>
                             <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">
                                 <span v-if="settingsForm.ai_api_key_set && !settingsForm.ai_api_key">✅ 已配置（留空则不修改）</span>
-                                <span v-else>支持 DeepSeek、OpenAI 等兼容接口</span>
+                                <span v-else>密钥仅保存在服务器数据库中，不会暴露给前端</span>
                             </div>
                         </el-form-item>
+                        <el-alert v-else type="success" :closable="false" show-icon style="margin-bottom: 18px;">
+                            <template #title>
+                                <span style="font-size: 13px;">{{ currentProviderPreset.name }} 无需 API Key，确保本地服务已启动即可</span>
+                            </template>
+                        </el-alert>
+
+                        <!-- Base URL -->
                         <el-form-item label="Base URL">
                             <el-input
                                 v-model="settingsForm.ai_base_url"
-                                placeholder="如：https://api.deepseek.com">
+                                :placeholder="currentProviderPreset.base_url || '输入 API 地址'">
                             </el-input>
                             <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">
-                                DeepSeek: https://api.deepseek.com &nbsp;|&nbsp; OpenAI: https://api.openai.com/v1
+                                <span v-if="settingsForm.ai_provider === 'ollama'">Ollama 默认地址：http://localhost:11434/v1</span>
+                                <span v-else>选择服务商后自动填充，也可手动修改</span>
                             </div>
                         </el-form-item>
+
+                        <!-- 模型名称 -->
                         <el-form-item label="模型名称">
-                            <el-input
+                            <el-select
+                                v-if="currentProviderPreset.models.length > 0"
                                 v-model="settingsForm.ai_model_name"
-                                placeholder="如：deepseek-chat">
+                                filterable
+                                allow-create
+                                placeholder="选择或输入模型名称"
+                                style="width: 100%;">
+                                <el-option
+                                    v-for="model in currentProviderPreset.models"
+                                    :key="model"
+                                    :label="model"
+                                    :value="model">
+                                </el-option>
+                            </el-select>
+                            <el-input
+                                v-else
+                                v-model="settingsForm.ai_model_name"
+                                placeholder="输入模型名称">
                             </el-input>
                             <div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">
-                                DeepSeek: deepseek-chat &nbsp;|&nbsp; OpenAI: gpt-4o / gpt-3.5-turbo
+                                <span v-if="settingsForm.ai_provider === 'ollama'">运行 <code>ollama list</code> 查看已安装的模型</span>
+                                <span v-else>支持手动输入自定义模型名称</span>
                             </div>
                         </el-form-item>
+
                         <el-alert
                             type="info"
                             :closable="false"

@@ -245,6 +245,54 @@
             letter-spacing: -0.5px;
         }
         
+        /* 导航标签切换 */
+        .nav-tabs {
+            display: flex;
+            gap: 4px;
+            background: rgba(0, 0, 0, 0.04);
+            border-radius: 12px;
+            padding: 4px;
+        }
+        body.dark-mode .nav-tabs {
+            background: rgba(255, 255, 255, 0.06);
+        }
+        .nav-tab {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 20px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.25s ease;
+            user-select: none;
+        }
+        .nav-tab:hover {
+            color: var(--primary-color);
+            background: rgba(79, 70, 229, 0.06);
+        }
+        .nav-tab.active {
+            color: #fff;
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+        }
+        @media (max-width: 768px) {
+            .nav-tabs {
+                order: 3;
+                width: 100%;
+                justify-content: center;
+                margin-top: 8px;
+            }
+            .navbar {
+                flex-wrap: wrap;
+                height: auto;
+                padding: 10px 5%;
+                gap: 8px;
+            }
+        }
+        
         .brand-icon {
             background: linear-gradient(135deg, var(--primary-color), #818cf8);
             color: white;
@@ -494,6 +542,88 @@
         }
         .empty-state-icon { font-size: 60px; color: #cbd5e1; margin-bottom: 16px; }
         .empty-state p { color: var(--text-secondary); font-size: 16px; }
+
+        /* 阅读统计看板样式 */
+        .stats-section {
+            margin-bottom: 28px;
+        }
+        .stats-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .stats-summary-badges {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .summary-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            backdrop-filter: blur(4px);
+            transition: transform 0.2s ease;
+        }
+        .summary-badge:hover { transform: translateY(-2px); }
+        .summary-badge strong { font-weight: 700; font-size: 15px; }
+        .badge-primary {
+            background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+            color: #4f46e5;
+            border: 1px solid rgba(79, 70, 229, 0.15);
+        }
+        .badge-success {
+            background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+            color: #059669;
+            border: 1px solid rgba(5, 150, 105, 0.15);
+        }
+        .stats-charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+        @media (max-width: 900px) {
+            .stats-charts-grid { grid-template-columns: 1fr; }
+        }
+        .stats-chart-card {
+            background-color: var(--card-bg);
+            border-radius: var(--border-radius-lg);
+            padding: 16px 18px;
+            box-shadow: var(--shadow-md);
+            border: 1px solid rgba(0,0,0,0.02);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .stats-chart-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+        }
+        .stats-chart-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-main);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        body.dark-mode .stats-chart-card {
+            background: #16213e;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        body.dark-mode .badge-primary {
+            background: linear-gradient(135deg, #1e1b4b, #312e81);
+            border-color: rgba(129, 140, 248, 0.2);
+        }
+        body.dark-mode .badge-success {
+            background: linear-gradient(135deg, #064e3b, #065f46);
+            border-color: rgba(52, 211, 153, 0.2);
+        }
 
         .el-dialog { border-radius: var(--border-radius-md) !important; overflow: hidden; }
         .el-drawer { border-radius: 16px 0 0 16px !important; }

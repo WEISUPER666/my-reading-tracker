@@ -1,4 +1,4 @@
-const { createApp, ref, computed, onMounted, reactive, nextTick } = Vue;
+const { createApp, ref, computed, onMounted, reactive, nextTick, watch } = Vue;
         const { ElMessage, ElMessageBox } = ElementPlus;
 
         const API_BASE = '/api';
@@ -33,6 +33,11 @@ const { createApp, ref, computed, onMounted, reactive, nextTick } = Vue;
 
         const app = createApp({
             setup() {
+                // ==========================================
+                // 页面切换状态
+                // ==========================================
+                const currentPage = ref('home'); // 'home' 或 'stats'
+
                 // ==========================================
                 // 需求一：密码锁状态
                 // ==========================================
@@ -180,17 +185,92 @@ const { createApp, ref, computed, onMounted, reactive, nextTick } = Vue;
                     site_name: '个人阅读档案',
                     welcome_title: '欢迎回来，阅读者 👋',
                     welcome_subtitle: '今天又读了什么好书？赶快记录下你的阅读进度或听书历程吧。每一次记录都是灵魂的脚印。',
-                    site_icon: ''
+                    site_icon: '',
+                    ai_provider: 'deepseek'
                 });
                 const showSettingsDialog = ref(false);
                 const isSavingSettings = ref(false);
                 const settingsActiveTab = ref('basic');
+
+                // AI 服务商预设配置
+                const aiProviderPresets = {
+                    deepseek: {
+                        name: 'DeepSeek',
+                        icon: '🔮',
+                        base_url: 'https://api.deepseek.com',
+                        models: ['deepseek-chat', 'deepseek-reasoner'],
+                        needApiKey: true,
+                        apiKeyPlaceholder: '输入 DeepSeek API Key',
+                        description: '国产高性能大模型，性价比极高'
+                    },
+                    openai: {
+                        name: 'OpenAI',
+                        icon: '🤖',
+                        base_url: 'https://api.openai.com/v1',
+                        models: ['gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo'],
+                        needApiKey: true,
+                        apiKeyPlaceholder: '输入 OpenAI API Key (sk-...)',
+                        description: '全球领先的 AI 模型，功能强大'
+                    },
+                    gemini: {
+                        name: 'Google Gemini',
+                        icon: '✨',
+                        base_url: 'https://generativelanguage.googleapis.com/v1beta/openai',
+                        models: ['gemini-2.0-flash', 'gemini-2.5-flash', 'gemini-2.5-pro'],
+                        needApiKey: true,
+                        apiKeyPlaceholder: '输入 Google AI Studio API Key',
+                        description: 'Google 旗舰多模态模型'
+                    },
+                    ollama: {
+                        name: 'Ollama (本地)',
+                        icon: '🦙',
+                        base_url: 'http://localhost:11434/v1',
+                        models: ['qwen2.5:7b', 'llama3.1:8b', 'deepseek-r1:7b', 'gemma2:9b', 'mistral:7b'],
+                        needApiKey: false,
+                        apiKeyPlaceholder: '',
+                        description: '本地运行，无需 API Key，隐私安全'
+                    },
+                    custom: {
+                        name: '自定义',
+                        icon: '⚙️',
+                        base_url: '',
+                        models: [],
+                        needApiKey: true,
+                        apiKeyPlaceholder: '输入 API Key',
+                        description: '兼容 OpenAI 格式的第三方服务'
+                    }
+                };
+
+                // 当前选中服务商的预设信息（计算属性）
+                const currentProviderPreset = computed(() => {
+                    return aiProviderPresets[settingsForm.ai_provider] || aiProviderPresets.custom;
+                });
+
+                // 切换 AI 服务商时自动填充预设配置
+                const onAiProviderChange = (provider) => {
+                    const preset = aiProviderPresets[provider];
+                    if (!preset) return;
+                    // 自动填充 Base URL
+                    settingsForm.ai_base_url = preset.base_url;
+                    // 自动选择第一个模型
+                    if (preset.models.length > 0) {
+                        settingsForm.ai_model_name = preset.models[0];
+                    } else {
+                        settingsForm.ai_model_name = '';
+                    }
+                    // 如果不需要 API Key（如 Ollama），清空密钥输入
+                    if (!preset.needApiKey) {
+                        settingsForm.ai_api_key = '';
+                    }
+                };
+
                 const settingsForm = reactive({
                     site_name: '',
                     welcome_title: '',
                     welcome_subtitle: '',
                     site_icon: '',
                     // AI 配置
+                    ai_provider: 'deepseek',
                     ai_api_key: '',
                     ai_api_key_set: false,
                     ai_base_url: '',
@@ -214,6 +294,7 @@ const { createApp, ref, computed, onMounted, reactive, nextTick } = Vue;
                     settingsForm.welcome_subtitle = siteSettings.welcome_subtitle;
                     settingsForm.site_icon = siteSettings.site_icon;
                     // AI 配置
+                    settingsForm.ai_provider = siteSettings.ai_provider || 'deepseek';
                     settingsForm.ai_api_key = '';  // 不回显密钥，留空表示不修改
                     settingsForm.ai_api_key_set = siteSettings.ai_api_key_set;
                     settingsForm.ai_base_url = siteSettings.ai_base_url;
@@ -232,13 +313,21 @@ const { createApp, ref, computed, onMounted, reactive, nextTick } = Vue;
                         ElMessage.warning('欢迎标题不能为空');
                         return;
                     }
+                    // 验证：如果服务商需要 API Key 且未配置过，则必须填写
+                    const preset = aiProviderPresets[settingsForm.ai_provider];
+                    if (preset && preset.needApiKey && !settingsForm.ai_api_key && !settingsForm.ai_api_key_set) {
+                        ElMessage.warning('当前服务商需要 API Key，请填写');
+                        settingsActiveTab.value = 'ai';
+                        return;
+                    }
                     isSavingSettings.value = true;
                     try {
                         const payload = {
                             site_name: settingsForm.site_name.trim(),
                             welcome_title: settingsForm.welcome_title.trim(),
                             welcome_subtitle: settingsForm.welcome_subtitle.trim(),
-                            site_icon: settingsForm.site_icon
+                            site_icon: settingsForm.site_icon,
+                            ai_provider: settingsForm.ai_provider
                         };
                         // AI 配置：仅在用户填写了 API Key 时才发送（留空表示不修改）
                         if (settingsForm.ai_api_key) {
@@ -257,6 +346,7 @@ const { createApp, ref, computed, onMounted, reactive, nextTick } = Vue;
                             welcome_title: settingsForm.welcome_title.trim(),
                             welcome_subtitle: settingsForm.welcome_subtitle.trim(),
                             site_icon: settingsForm.site_icon,
+                            ai_provider: settingsForm.ai_provider,
                             ai_api_key_set: settingsForm.ai_api_key ? true : siteSettings.ai_api_key_set,
                             ai_base_url: settingsForm.ai_base_url.trim() || siteSettings.ai_base_url,
                             ai_model_name: settingsForm.ai_model_name.trim() || siteSettings.ai_model_name
@@ -541,6 +631,191 @@ const { createApp, ref, computed, onMounted, reactive, nextTick } = Vue;
                 const totalBooks = computed(() => books.value.length);
                 const readingBooks = computed(() => books.value.filter(book => book.status === '阅读中' || book.status === '正在听').length);
                 const completedBooks = computed(() => books.value.filter(book => book.status === '已读完' || book.status === '已听完').length);
+
+                // ==========================================
+                // 阅读统计看板
+                // ==========================================
+                const statsSummary = reactive({ this_week_logs: 0, this_week_books: 0 });
+                let weekTrendChartInstance = null;
+                let monthTrendChartInstance = null;
+                let statusChartInstance = null;
+                let platformChartInstance = null;
+
+                const colorPalette = [
+                    '#4f46e5', '#10b981', '#f59e0b', '#ef4444',
+                    '#8b5cf6', '#06b6d4', '#f97316', '#ec4899',
+                    '#14b8a6', '#6366f1', '#84cc16', '#d946ef'
+                ];
+
+                const fetchStats = async () => {
+                    try {
+                        const res = await axios.get(`${API_BASE}/stats/`);
+                        const data = res.data;
+                        statsSummary.this_week_logs = data.summary.this_week_logs;
+                        statsSummary.this_week_books = data.summary.this_week_books;
+                        renderWeekTrendChart(data.week);
+                        renderMonthTrendChart(data.month);
+                        renderStatusChart(data.status);
+                        renderPlatformChart(data.platform);
+                    } catch (error) {
+                        console.error('获取统计数据失败', error);
+                    }
+                };
+
+                const getChartThemeColors = () => {
+                    const isDark = isDarkMode.value;
+                    return {
+                        textColor: isDark ? '#9ca3af' : '#6b7280',
+                        axisLineColor: isDark ? '#334155' : '#e5e7eb',
+                        splitLineColor: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+                        bgColor: 'transparent'
+                    };
+                };
+
+                const renderWeekTrendChart = (weekData) => {
+                    const chartDom = document.getElementById('weekTrendChart');
+                    if (!chartDom) return;
+                    if (weekTrendChartInstance) weekTrendChartInstance.dispose();
+                    weekTrendChartInstance = echarts.init(chartDom);
+                    const theme = getChartThemeColors();
+                    weekTrendChartInstance.setOption({
+                        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                        grid: { left: '8%', right: '4%', top: '10%', bottom: '15%' },
+                        xAxis: {
+                            type: 'category',
+                            data: weekData.labels,
+                            axisLabel: { color: theme.textColor, fontSize: 11 },
+                            axisLine: { lineStyle: { color: theme.axisLineColor } }
+                        },
+                        yAxis: {
+                            type: 'value',
+                            minInterval: 1,
+                            axisLabel: { color: theme.textColor, fontSize: 11 },
+                            splitLine: { lineStyle: { color: theme.splitLineColor } }
+                        },
+                        series: [{
+                            data: weekData.data,
+                            type: 'bar',
+                            barWidth: '45%',
+                            itemStyle: {
+                                borderRadius: [6, 6, 0, 0],
+                                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                    { offset: 0, color: '#818cf8' },
+                                    { offset: 1, color: '#4f46e5' }
+                                ])
+                            },
+                            emphasis: {
+                                itemStyle: {
+                                    color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                        { offset: 0, color: '#a5b4fc' },
+                                        { offset: 1, color: '#6366f1' }
+                                    ])
+                                }
+                            }
+                        }]
+                    });
+                };
+
+                const renderMonthTrendChart = (monthData) => {
+                    const chartDom = document.getElementById('monthTrendChart');
+                    if (!chartDom) return;
+                    if (monthTrendChartInstance) monthTrendChartInstance.dispose();
+                    monthTrendChartInstance = echarts.init(chartDom);
+                    const theme = getChartThemeColors();
+                    // 简化月份标签显示
+                    const shortLabels = monthData.labels.map(l => l.split('-')[1] + '月');
+                    monthTrendChartInstance.setOption({
+                        tooltip: { trigger: 'axis' },
+                        grid: { left: '8%', right: '4%', top: '10%', bottom: '15%' },
+                        xAxis: {
+                            type: 'category',
+                            data: shortLabels,
+                            axisLabel: { color: theme.textColor, fontSize: 10, rotate: 30 },
+                            axisLine: { lineStyle: { color: theme.axisLineColor } }
+                        },
+                        yAxis: {
+                            type: 'value',
+                            minInterval: 1,
+                            axisLabel: { color: theme.textColor, fontSize: 11 },
+                            splitLine: { lineStyle: { color: theme.splitLineColor } }
+                        },
+                        series: [{
+                            data: monthData.data,
+                            type: 'line',
+                            smooth: true,
+                            symbol: 'circle',
+                            symbolSize: 6,
+                            lineStyle: { width: 3, color: '#10b981' },
+                            itemStyle: { color: '#10b981', borderWidth: 2, borderColor: '#fff' },
+                            areaStyle: {
+                                color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                                    { offset: 0, color: 'rgba(16, 185, 129, 0.3)' },
+                                    { offset: 1, color: 'rgba(16, 185, 129, 0.02)' }
+                                ])
+                            }
+                        }]
+                    });
+                };
+
+                const renderStatusChart = (statusData) => {
+                    const chartDom = document.getElementById('statusChart');
+                    if (!chartDom) return;
+                    if (statusChartInstance) statusChartInstance.dispose();
+                    statusChartInstance = echarts.init(chartDom);
+                    const statusColorMap = { '阅读中': '#f59e0b', '正在听': '#f59e0b', '已读完': '#10b981', '已听完': '#10b981', '已弃坑': '#9ca3af' };
+                    const coloredData = statusData.map(item => ({
+                        ...item,
+                        itemStyle: { color: statusColorMap[item.name] || colorPalette[0] }
+                    }));
+                    statusChartInstance.setOption({
+                        tooltip: { trigger: 'item', formatter: '{b}: {c} 条 ({d}%)' },
+                        legend: { bottom: '2%', textStyle: { fontSize: 11, color: getChartThemeColors().textColor }, itemWidth: 10, itemHeight: 10 },
+                        series: [{
+                            type: 'pie',
+                            radius: ['40%', '65%'],
+                            center: ['50%', '42%'],
+                            avoidLabelOverlap: true,
+                            padAngle: 3,
+                            itemStyle: { borderRadius: 6, borderColor: isDarkMode.value ? '#16213e' : '#fff', borderWidth: 2 },
+                            label: { show: false },
+                            emphasis: { label: { show: true, fontSize: 13, fontWeight: 'bold' } },
+                            data: coloredData
+                        }]
+                    });
+                };
+
+                const renderPlatformChart = (platformData) => {
+                    const chartDom = document.getElementById('platformChart');
+                    if (!chartDom) return;
+                    if (platformChartInstance) platformChartInstance.dispose();
+                    platformChartInstance = echarts.init(chartDom);
+                    platformChartInstance.setOption({
+                        tooltip: { trigger: 'item', formatter: '{b}: {c} 条 ({d}%)' },
+                        legend: { bottom: '2%', textStyle: { fontSize: 11, color: getChartThemeColors().textColor }, itemWidth: 10, itemHeight: 10 },
+                        series: [{
+                            type: 'pie',
+                            radius: ['40%', '65%'],
+                            center: ['50%', '42%'],
+                            roseType: 'area',
+                            avoidLabelOverlap: true,
+                            padAngle: 3,
+                            itemStyle: { borderRadius: 6, borderColor: isDarkMode.value ? '#16213e' : '#fff', borderWidth: 2 },
+                            label: { show: false },
+                            emphasis: { label: { show: true, fontSize: 13, fontWeight: 'bold' } },
+                            data: platformData,
+                            color: colorPalette
+                        }]
+                    });
+                };
+
+                // 窗口大小变化时自适应所有统计图表
+                const statsResizeHandler = () => {
+                    weekTrendChartInstance && weekTrendChartInstance.resize();
+                    monthTrendChartInstance && monthTrendChartInstance.resize();
+                    statusChartInstance && statusChartInstance.resize();
+                    platformChartInstance && platformChartInstance.resize();
+                };
+                window.addEventListener('resize', statsResizeHandler);
 
                 // 获取所有书籍列表
                 const fetchBooks = async () => {
@@ -1186,7 +1461,18 @@ const { createApp, ref, computed, onMounted, reactive, nextTick } = Vue;
                     }
                 });
 
+                // 监听页面切换，当切换到统计看板时重新渲染图表
+                watch(currentPage, (newPage) => {
+                    if (newPage === 'stats') {
+                        nextTick(() => {
+                            fetchStats();
+                        });
+                    }
+                });
+
                 return {
+                    // 页面切换
+                    currentPage,
                     // 密码锁
                     isAuthenticated, authPassword, isAuthLoading, authError, handleAuth, handleLogout,
                     // 书籍数据
@@ -1222,13 +1508,17 @@ const { createApp, ref, computed, onMounted, reactive, nextTick } = Vue;
                     // 系统设置
                     siteSettings, showSettingsDialog, isSavingSettings, settingsActiveTab, settingsForm,
                     openSettingsDialog, handleSaveSettings, handleSettingsIconUpload, onSiteIconError,
+                    // AI 服务商选择
+                    aiProviderPresets, currentProviderPreset, onAiProviderChange,
                     // 修改密码
                     showChangePasswordDialog, isChangingPassword, changePasswordForm, handleChangePassword,
                     // 设置下拉菜单 & 夜间模式
                     isDarkMode, handleSettingsCommand,
                     // AI 阅读助手
                     showChatWindow, chatMessages, chatInput, isChatLoading, chatMessagesRef,
-                    toggleChatWindow, sendChatMessage
+                    toggleChatWindow, sendChatMessage,
+                    // 阅读统计看板
+                    statsSummary
                 };
             }
         });
